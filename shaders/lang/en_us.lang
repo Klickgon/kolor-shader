@@ -1,0 +1,7 @@
+option.SHADOW_BIAS = Shadow Bias
+option.SHADOW_DISTORT_FACTOR = Shadow Distort Factor
+option.SHADOW_BRIGHTNESS = Shadow Brightness
+option.shadowMapResolution = Shadow Map Resolution
+option.NORMAL_BIAS = Normal Bias
+option.SHADOW_DISTORT_ENABLED = Enable Shadow Distortion
+option.
