@@ -1,13 +1,13 @@
 #version 120
 
-#define COLORED_SHADOWS 1 //0: Stained glass will cast ordinary shadows. 1: Stained glass will cast colored shadows. 2: Stained glass will not cast any shadows. [0 1 2]
-#define SHADOW_BRIGHTNESS 0.75 //Light levels are multiplied by this number when the surface is in shadows [0.00 0.05 0.10 0.15 0.20 0.25 0.30 0.35 0.40 0.45 0.50 0.55 0.60 0.65 0.70 0.75 0.80 0.85 0.90 0.95 1.00]
+#include "/settings.glsl"
 
 uniform sampler2D lightmap;
 uniform sampler2D shadowcolor0;
 uniform sampler2D shadowtex0;
 uniform sampler2D shadowtex1;
 uniform sampler2D texture;
+uniform vec3 skyColor;
 
 varying vec2 lmcoord;
 varying vec2 texcoord;
@@ -54,7 +54,6 @@ void main() {
 		#endif
 	}
 	color *= texture2D(lightmap, lm);
-
 /* DRAWBUFFERS:0 */
 	gl_FragData[0] = color; //gcolor
 }

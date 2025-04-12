@@ -1,31 +1,39 @@
 #version 120
 
-#define COLORED_SHADOWS 1 //0: Stained glass will cast ordinary shadows. 1: Stained glass will cast colored shadows. 2: Stained glass will not cast any shadows. [0 1 2]
-#define SHADOW_BRIGHTNESS 0.75 //Light levels are multiplied by this number when the surface is in shadows [0.00 0.05 0.10 0.15 0.20 0.25 0.30 0.35 0.40 0.45 0.50 0.55 0.60 0.65 0.70 0.75 0.80 0.85 0.90 0.95 1.00]
+#define M_PI 3.1415926535897932384626433832795
 
 uniform sampler2D lightmap;
 uniform sampler2D shadowcolor0;
 uniform sampler2D shadowtex0;
 uniform sampler2D shadowtex1;
 uniform sampler2D texture;
+uniform vec3 skyColor;
+uniform float sunAngle;
 
 varying vec2 lmcoord;
 varying vec2 texcoord;
 varying vec4 glcolor;
 varying vec4 shadowPos;
+varying vec3 normal;
 
 //fix artifacts when colored shadows are enabled
 const bool shadowcolor0Nearest = true;
 const bool shadowtex0Nearest = true;
 const bool shadowtex1Nearest = true;
 
-//only using this include for shadowMapResolution,
-//since that has to be declared in the fragment stage in order to do anything.
-#include "/distort.glsl"
+#include "/settings.glsl"
+
+float getLightIntensity(float x){
+	return 0.5 * sin(x * M_PI * 2) - 0.5;
+}
 
 void main() {
 	vec4 color = texture2D(texture, texcoord) * glcolor;
+	float intensity = getLightIntensity(sunAngle);
 	vec2 lm = lmcoord;
+	float intensitysky = 0.05 * intensity + 1;
+	intensity = intensity > 0 ? 0 : -intensity;
+	vec3 sky =  mix(skyColor, vec3(1.0), intensity);
 	if (shadowPos.w > 0.0) {
 		//surface is facing towards shadowLightPosition
 		#if COLORED_SHADOWS == 0
@@ -37,7 +45,7 @@ void main() {
 			if (texture2D(shadowtex1, shadowPos.xy).r < shadowPos.z) {
 		#endif
 			//surface is in shadows. reduce light level.
-			lm.y *= SHADOW_BRIGHTNESS;
+			lm.y = SHADOW_BRIGHTNESS;
 		}
 		else {
 			//surface is in direct sunlight. increase light level.
@@ -50,17 +58,21 @@ void main() {
 					//if the block light is high, modify the color less.
 					vec4 shadowLightColor = texture2D(shadowcolor0, shadowPos.xy);
 					//make colors more intense when the shadow light color is more opaque.
-					shadowLightColor.rgb = mix(vec3(1.0), shadowLightColor.rgb, shadowLightColor.a);
+					shadowLightColor.rgb = mix(vec3(1.0), shadowLightColor.rgb, shadowLightColor.a) * (intensitysky + 1);
 					//also make colors less intense when the block light level is high.
 					shadowLightColor.rgb = mix(shadowLightColor.rgb, vec3(1.0), lm.x);
-					//apply the color.
+					//apply the color
 					color.rgb *= shadowLightColor.rgb;
-				}
+				} else sky = vec3(1.0);
+				
 			#endif
 		}
+		
 	}
+	vec3 blocklight = vec3(.5, 0.35, 0.1);
+	color.rgb *= blocklight * lm.x + mix(lmcoord.y * sky.rgb * intensitysky, vec3(1.0), lm.x) + clamp((dot(normalize(shadowPos.xyz), normal) * 0.03), 0.0, 1.0);
 	color *= texture2D(lightmap, lm);
 
-/* DRAWBUFFERS:0 */
+	/* DRAWBUFFERS:0 */
 	gl_FragData[0] = color; //gcolor
 }

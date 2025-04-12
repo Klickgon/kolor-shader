@@ -3,5 +3,8 @@ option.SHADOW_DISTORT_FACTOR = Shadow Distort Factor
 option.SHADOW_BRIGHTNESS = Shadow Brightness
 option.shadowMapResolution = Shadow Map Resolution
 option.NORMAL_BIAS = Normal Bias
-option.SHADOW_DISTORT_ENABLED = Enable Shadow Distortion
-option.
+option.SHADOW_DISTORT_ENABLED = Shadow Distortion
+option.EXCLUDE_FOLIAGE = Exclude Foliage Shadows
+option.COLORED_SHADOWS = Colored Shadows
+option.DRAW_SHADOW_MAP = Draw Shadow Map
+opttion.
