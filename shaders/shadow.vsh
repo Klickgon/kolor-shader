@@ -2,11 +2,22 @@
 
 attribute vec4 mc_Entity;
 
+uniform mat4 gbufferModelView;
+uniform mat4 gbufferModelViewInverse;
+uniform float frameTimeCounter;
+uniform vec3 cameraPosition;
+uniform mat4 shadowProjectionInverse;
+uniform mat4 shadowModelView;
+uniform mat4 shadowModelViewInverse;
+
+in vec2 mc_midTexCoord;
+
 varying vec2 lmcoord;
 varying vec2 texcoord;
 varying vec4 glcolor;
 
 #include "/distort.glsl"
+#include "/lib/vertex_manipulation.glsl"
 
 void main() {
 	texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
@@ -19,9 +30,24 @@ void main() {
 		}
 		else {
 	#endif
-			gl_Position = ftransform();
+				gl_Position = ftransform();
+				vec3 worldPos = (shadowModelViewInverse * (gl_ModelViewMatrix * gl_Vertex)).xyz + cameraPosition;
+				vec3 vPos = gl_Vertex.xyz;
+				if(mc_Entity.x == 10001.0){
+					gl_Position = shadowModelView * vec4(applyWindEffect(worldPos, vPos) - cameraPosition, 1.0);
+					gl_Position = gl_ProjectionMatrix * gl_Position;
+				}
+				else if(mc_Entity.x == 12412.0){
+					if(mc_midTexCoord.y > texcoord.y){
+						gl_Position = shadowModelView * vec4(applyWindEffect(worldPos, vPos) - cameraPosition, 1.0);
+						gl_Position = gl_ProjectionMatrix * gl_Position;
+					}
+				}
+				
 			gl_Position.xyz = distort(gl_Position.xyz);
+			
 	#ifdef EXCLUDE_FOLIAGE
 		}
 	#endif
+	
 }
