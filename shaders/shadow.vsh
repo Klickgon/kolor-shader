@@ -16,7 +16,7 @@ varying vec2 lmcoord;
 varying vec2 texcoord;
 varying vec4 glcolor;
 
-#include "/distort.glsl"
+#include "/lib/distort.glsl"
 #include "/lib/vertex_manipulation.glsl"
 
 void main() {
@@ -43,7 +43,6 @@ void main() {
 						gl_Position = gl_ProjectionMatrix * gl_Position;
 					}
 				}
-				
 			gl_Position.xyz = distort(gl_Position.xyz);
 			
 	#ifdef EXCLUDE_FOLIAGE

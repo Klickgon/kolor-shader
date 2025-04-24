@@ -17,7 +17,6 @@ uniform int worldTime;
 uniform int blockEntityId;
 uniform int isEyeInWater;
 
-
 varying vec2 lmcoord;
 varying vec2 texcoord;
 varying vec4 glcolor;
@@ -39,48 +38,42 @@ void main() {
 	float intensity = getLightIntensity(sunAngle);
 	vec2 lm = lmcoord;
 	float intensitysky = (0.25 * intensity) + 0.5;
-	vec3 sky =  mix(skyColor, vec3(1), intensity - 0.5);
-	float lightBrightness = mix(31.0 / 32.0 * SHADOW_BRIGHTNESS, 31.0 / 32.0, sqrt(shadowPos.w));
+	vec3 sky = mix(skyColor, vec3(1), intensity - 0.5);
+	float light = mix(31.0 / 32.0 * SHADOW_BRIGHTNESS, 31.0 / 32.0, sqrt(shadowPos.w));
+	float shadow;
 	if (shadowPos.w > 0.0) {
 		//surface is facing towards shadowLightPosition
 		#if COLORED_SHADOWS == 0
 			//for normal shadows, only consider the closest thing to the sun,
 			//regardless of whether or not it's opaque.
-			
-			if (texture2D(shadowtex0, shadowPos.xy).r < shadowPos.z) {
-				//surface is in shadows. reduce light level.
-				lm.y *= filteredShadow(shadowtex0, shadowPos.xy, 1.0 / textureSize(shadowtex0, 0), 2, shadowPos.z, lm.y * SHADOW_BRIGHTNESS, lightBrightness);
+			lm.y = filteredShadow(shadowtex0, shadowPos, 1.0 / textureSize(shadowtex0, 0), 2, 0.5);
+			sky *= mix(vec3(1.0), getCelestialColor() * intensity, lm.y);
 		#else
 			//for invisible and colored shadows, first check the closest OPAQUE thing to the sun.
-			if (texture2D(shadowtex1, shadowPos.xy).r < shadowPos.z) {
-				//surface is in shadows. reduce light level.
-				lm.y *= filteredShadow(shadowtex1, shadowPos.xy, 1.0 / textureSize(shadowtex1, 0), 2, shadowPos.z, lm.y * SHADOW_BRIGHTNESS, lightBrightness);
+			lm.y = filteredShadowColored(shadowtex1, shadowtex0, shadowPos, 1.0 / textureSize(shadowtex1, 0), 2, 0.5);
+			sky *= mix(vec3(1.0), getCelestialColor() * intensity, lm.y);
 		#endif
-		}
-		else {
-			//surface is in direct sunlight. increase light level.
-			lm.y = lightBrightness;
-			sky *= getCelestialColor() * intensity;
 			#if COLORED_SHADOWS == 1
 				//when colored shadows are enabled and there's nothing OPAQUE between us and the sun,
 				//perform a 2nd check to see if there's anything translucent between us and the sun.
-				if (texture2D(shadowtex0, shadowPos.xy).r < shadowPos.z) {
+				float tex0 = texture2D(shadowtex0, shadowPos.xy).r;
+				float tex1 = texture2D(shadowtex1, shadowPos.xy).r;
+				if (tex1 > shadowPos.z && tex0 < shadowPos.z) {
 					//surface has translucent object between it and the sun. modify its color.
 					//if the block light is high, modify the color less.
-					vec4 shadowLightColor = texture2D(shadowcolor0, shadowPos.xy) * intensitysky / (1+SHADOW_BRIGHTNESS);
+					vec4 shadowLightColor = texture2D(shadowcolor0, shadowPos.xy);
 					//make colors more intense when the shadow light color is more opaque.
 					shadowLightColor.rgb = mix(vec3(1.0), shadowLightColor.rgb, shadowLightColor.a);
 					//also make colors less intense when the block light level is high.
 					//apply the color
 					color.rgb *= mix(shadowLightColor.rgb, vec3(1), lm.x);
-					lm.y *= lmcoord.y;
 				}
+				
 			#endif
-		}
 	}
 	color *= texture2D(lightmap, lm);
-	lm.x /= lmcoord.y + 0.7;
-	color.rgb *= BLOCKLIGHT * lm.x  + mix(lm.y * intensitysky * sky, vec3(1), lm.x) + clamp((dot(normalize(shadowPos.xyz), normal) * 0.03 * lm.y), 0., 1.);
+	lm.x /= (0.5 * lmcoord.y) + 0.8; 
+	color.rgb *= BLOCKLIGHT * lm.x  + mix(intensitysky * sky * lm.y , vec3(1), lm.x) + clamp((dot(normalize(shadowPos.xyz), normal) * 0.003), 0., .05);
 	float fogAmount = clamp((length(viewPos3) - fogStart)/(fogEnd - fogStart), 0. , 1.);
 	color.rgb = mix(color.rgb, fogColor, fogAmount);
 	/* DRAWBUFFERS:0 */

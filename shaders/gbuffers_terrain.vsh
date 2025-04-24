@@ -20,7 +20,7 @@ varying vec4 shadowPos;
 varying vec3 normal;
 varying vec3 viewPos3;
 
-#include "/distort.glsl"
+#include "/lib/distort.glsl"
 #include "/lib/vertex_manipulation.glsl"
 
 void main() {
@@ -47,7 +47,7 @@ void main() {
 			viewPos = gbufferModelView * vec4(applyWindEffect(worldPos, vPos) - cameraPosition, 1.0);
 		}
 	}
-	viewPos3 = viewPos.rgb;
+	viewPos3 = viewPos.xyz;
 	if (lightDot > 0.0) { //vertex is facing towards the sun
 		vec4 playerPos = gbufferModelViewInverse * viewPos;
 		shadowPos = shadowProjection * (shadowModelView * playerPos); //convert to shadow ndc space.
@@ -59,7 +59,7 @@ void main() {
 			//we are allowed to project the normal because shadowProjection is purely a scalar matrix.
 			//a faster way to apply the same operation would be to multiply by shadowProjection[0][0].
 			vec4 normal = shadowProjection * vec4(mat3(shadowModelView) * (mat3(gbufferModelViewInverse) * (gl_NormalMatrix * gl_Normal)), 1.0);
-			shadowPos.xyz += normal.xyz / normal.w * bias;
+			shadowPos.xyz -= max(bias * (1.0 - lightDot), (bias / 2.0) + 0.00005);
 		#else
 			shadowPos.z -= bias / abs(lightDot);
 		#endif
@@ -70,5 +70,4 @@ void main() {
 	}
 	shadowPos.w = lightDot;
 	gl_Position = gl_ProjectionMatrix * viewPos;
-	
 }

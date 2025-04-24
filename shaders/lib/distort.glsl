@@ -1,7 +1,5 @@
 #include "/settings.glsl"
 
-
-
 #ifdef SHADOW_DISTORT_ENABLED
 	vec3 distort(vec3 pos) {
 		float factor = length(pos.xy) + SHADOW_DISTORT_FACTOR;

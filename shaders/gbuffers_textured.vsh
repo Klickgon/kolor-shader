@@ -11,7 +11,7 @@ varying vec2 texcoord;
 varying vec4 glcolor;
 varying vec3 shadowPos; //normals don't exist for particles
 
-#include "/distort.glsl"
+#include "/lib/distort.glsl"
 
 void main() {
 	texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;

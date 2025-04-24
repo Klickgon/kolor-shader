@@ -7,6 +7,11 @@ uniform mat4 gbufferModelViewInverse;
 uniform mat4 shadowModelView;
 uniform mat4 shadowProjection;
 uniform vec3 shadowLightPosition;
+uniform vec3 cameraPosition;
+uniform int blockEntityId;
+uniform float frameTimeCounter;
+
+in vec2 mc_midTexCoord;
 
 varying vec2 lmcoord;
 varying vec2 texcoord;
@@ -15,7 +20,8 @@ varying vec4 shadowPos;
 varying vec3 normal;
 varying vec3 viewPos3;
 
-#include "/distort.glsl"
+#include "/lib/distort.glsl"
+#include "/lib/vertex_manipulation.glsl"
 
 void main() {
 	texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
@@ -27,11 +33,21 @@ void main() {
 	#ifdef EXCLUDE_FOLIAGE
 		//when EXCLUDE_FOLIAGE is enabled, act as if foliage is always facing towards the sun.
 		//in other words, don't darken the back side of it unless something else is casting a shadow on it.
-		if (mc_Entity.x == 10000.0) lightDot = 1.0;
+		if (mc_Entity.x == 10000.0 || mc_Entity.x == 12412.0) lightDot = 1.0;
 	#endif
 
-	vec4 viewPos = gl_ModelViewMatrix * gl_Vertex;
-	viewPos3 = viewPos.rgb;
+		vec4 viewPos = gl_ModelViewMatrix * gl_Vertex;
+		vec3 vPos = gl_Vertex.xyz;
+		vec3 worldPos = (gbufferModelViewInverse * viewPos).xyz + cameraPosition;
+	if(mc_Entity.x == 10001.0){
+		viewPos = gbufferModelView * vec4(applyWindEffect(worldPos, vPos) - cameraPosition, 1.0);
+	}
+	if(mc_Entity.x == 12412.0){
+		if(mc_midTexCoord.y > texcoord.y){
+			viewPos = gbufferModelView * vec4(applyWindEffect(worldPos, vPos) - cameraPosition, 1.0);
+		}
+	}
+	viewPos3 = viewPos.xyz;
 	if (lightDot > 0.0) { //vertex is facing towards the sun
 		vec4 playerPos = gbufferModelViewInverse * viewPos;
 		shadowPos = shadowProjection * (shadowModelView * playerPos); //convert to shadow ndc space.
@@ -43,7 +59,7 @@ void main() {
 			//we are allowed to project the normal because shadowProjection is purely a scalar matrix.
 			//a faster way to apply the same operation would be to multiply by shadowProjection[0][0].
 			vec4 normal = shadowProjection * vec4(mat3(shadowModelView) * (mat3(gbufferModelViewInverse) * (gl_NormalMatrix * gl_Normal)), 1.0);
-			shadowPos.xyz += normal.xyz / normal.w * bias;
+			shadowPos.xyz -= max(bias * (1.0 - lightDot), (bias / 2.0) + 0.00005);
 		#else
 			shadowPos.z -= bias / abs(lightDot);
 		#endif
