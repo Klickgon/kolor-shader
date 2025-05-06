@@ -19,11 +19,14 @@ varying vec4 glcolor;
 varying vec4 shadowPos;
 varying vec3 normal;
 varying vec3 viewPos3;
+varying vec3 glNormal;
 
+#include "/settings.glsl"
 #include "/lib/distort.glsl"
 #include "/lib/vertex_manipulation.glsl"
 
 void main() {
+	glNormal = gl_Normal;
 	texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
 	lmcoord  = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
 	glcolor = gl_Color;
@@ -35,7 +38,6 @@ void main() {
 		//in other words, don't darken the back side of it unless something else is casting a shadow on it.
 		if (mc_Entity.x == 10000.0 || mc_Entity.x == 12412.0) lightDot = 1.0;
 	#endif
-
 		vec4 viewPos = gl_ModelViewMatrix * gl_Vertex;
 		vec3 vPos = gl_Vertex.xyz;
 		vec3 worldPos = (gbufferModelViewInverse * viewPos).xyz + cameraPosition;
@@ -51,18 +53,8 @@ void main() {
 	if (lightDot > 0.0) { //vertex is facing towards the sun
 		vec4 playerPos = gbufferModelViewInverse * viewPos;
 		shadowPos = shadowProjection * (shadowModelView * playerPos); //convert to shadow ndc space.
-		float bias = computeBias(shadowPos.xyz);
 		shadowPos.xyz = distort(shadowPos.xyz); //apply shadow distortion
 		shadowPos.xyz = shadowPos.xyz * 0.5 + 0.5; //convert from -1 ~ +1 to 0 ~ 1
-		//apply shadow bias.
-		#ifdef NORMAL_BIAS
-			//we are allowed to project the normal because shadowProjection is purely a scalar matrix.
-			//a faster way to apply the same operation would be to multiply by shadowProjection[0][0].
-			vec4 normal = shadowProjection * vec4(mat3(shadowModelView) * (mat3(gbufferModelViewInverse) * (gl_NormalMatrix * gl_Normal)), 1.0);
-			shadowPos.xyz -= max(bias * (1.0 - lightDot), (bias / 2.0) + 0.00005);
-		#else
-			shadowPos.z -= bias / abs(lightDot);
-		#endif
 	}
 	else { //vertex is facing away from the sun
 		lmcoord.y *= SHADOW_BRIGHTNESS; //guaranteed to be in shadows. reduce light level immediately.

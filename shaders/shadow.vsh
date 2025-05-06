@@ -16,6 +16,7 @@ varying vec2 lmcoord;
 varying vec2 texcoord;
 varying vec4 glcolor;
 
+#include "/settings.glsl"
 #include "/lib/distort.glsl"
 #include "/lib/vertex_manipulation.glsl"
 

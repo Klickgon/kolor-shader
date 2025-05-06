@@ -7,4 +7,4 @@ option.SHADOW_DISTORT_ENABLED = Shadow Distortion
 option.EXCLUDE_FOLIAGE = Exclude Foliage Shadows
 option.COLORED_SHADOWS = Colored Shadows
 option.DRAW_SHADOW_MAP = Draw Shadow Map
-opttion.
+option.PENUMBRA_SHADOWS = Penumbra Shadows
