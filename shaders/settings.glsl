@@ -7,7 +7,7 @@
 #define COLORED_SHADOWS 1 //0: Stained glass will cast ordinary shadows. 1: Stained glass will cast colored shadows. 2: Stained glass will not cast any shadows. [0 1 2]
 #define PENUMBRA_SHADOWS
 
-#define BLOCKLIGHT (vec3(.5, 0.35, 0.1) * 1.1)
+#define BLOCKLIGHT (vec3(0.77, 0.62, 0.46) * 1.7)
 #define SUNCOLOR (vec3(0.95, 0.80, 0.72) * 2)
 #define MOONCOLOR (vec3(0.94, 0.91, 0.86) * 1.4)
 

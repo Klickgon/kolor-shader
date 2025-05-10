@@ -1,7 +1,4 @@
-#version 120
-
 #define PI 3.1415926535897932384626433832795
-
 
 uniform sampler2D lightmap;
 uniform sampler2D shadowcolor0;
@@ -29,7 +26,6 @@ varying vec4 glcolor;
 varying vec4 shadowPos;
 varying vec3 normal;
 varying vec3 viewPos3;
-varying vec3 glNormal;
 
 //fix artifacts when colored shadows are enabled
 const bool shadowcolor0Nearest = true;
@@ -54,21 +50,20 @@ void main() {
 			//for normal shadows, only consider the closest thing to the sun,
 			//regardless of whether or not it's opaque.
 			lm.y = filteredShadow(shadowPos, 1.0 / textureSize(shadowtex0, 0), 2, 0.5, light);
-			tint = vec3(lm.y);
-			sky *= mix(vec3(1.0), getCelestialColor() * intensity, lm.y);
+            float range = ((lm.y - SHADOW_BRIGHTNESS * lmcoord.y) / (light - SHADOW_BRIGHTNESS * lmcoord.y));
+			sky *= mix(vec3(1.0), getCelestialColor() * intensity, range);
 		#else
-			//for invisible and colored shadows, first check the closest OPAQUE thing to the sun.
 			lm.y = filteredShadow(shadowPos, 1.0 / textureSize(shadowtex1, 0), 2, 0.5, light);
-			sky *= mix(vec3(1.0), getCelestialColor() * intensity, lm.y);
+            float range = ((lm.y - SHADOW_BRIGHTNESS * lmcoord.y) / (light - SHADOW_BRIGHTNESS * lmcoord.y));
+			sky *= mix(vec3(1.0), getCelestialColor() * intensity, range);
 			#if COLORED_SHADOWS == 1
 				tint = filteredColoredShadow(shadowPos, 1.0 / textureSize(shadowtex0, 0), 2, 0.5, intensitysky);
 			#endif
 		#endif
 	}
 	color *= texture2D(lightmap, lm);
-	lm.x /= (lmcoord.y * lmcoord.y) + 1; 
-	color.rgb *= BLOCKLIGHT * lm.x + mix(intensitysky * sky, vec3(1.0), lm.x) + clamp((dot(normalize(shadowPos.xyz), normal) * 0.3), 0., .05);
-	float fogAmount = clamp((length(viewPos3) - fogStart)/(fogEnd - fogStart), 0. , 1.);
+	color.rgb *= mix(intensitysky * sky, BLOCKLIGHT, lm.x) + clamp((dot(normalize(shadowPos.xyz), normal) * 0.3), 0.0, 1.0);
+	float fogAmount = clamp((length(viewPos3) - fogStart)/(fogEnd - fogStart), 0.0 , 1.0);
 	color.rgb = mix(color.rgb * tint, fogColor, fogAmount);
 	/* DRAWBUFFERS:0 */
 	gl_FragData[0] = color; //gcolor

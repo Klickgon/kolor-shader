@@ -12,7 +12,7 @@
 	float computeBias(vec3 pos) {
 		//square(length(pos.xy) + SHADOW_DISTORT_FACTOR) / SHADOW_DISTORT_FACTOR
 		float numerator = length(pos.xy) + SHADOW_DISTORT_FACTOR;
-		numerator *= numerator;
+		numerator *= 4*numerator;
 		return SHADOW_BIAS / shadowMapResolution * numerator / SHADOW_DISTORT_FACTOR;
 	}
 #else
