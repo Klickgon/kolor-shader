@@ -10,6 +10,7 @@ varying vec2 lmcoord;
 varying vec2 texcoord;
 varying vec4 glcolor;
 varying vec3 shadowPos; //normals don't exist for particles
+varying float distortFactor;
 
 #include "/settings.glsl"
 #include "/lib/distort.glsl"

@@ -1,23 +1,24 @@
 
 vec3 getCelestialColor(){
-	bool isDay = worldTime <= 12000;
+	bool isDay = sunPosition == shadowLightPosition;
 	return float(isDay) * SUNCOLOR + float(!isDay) * MOONCOLOR;
 }
 
 float getLightIntensity(float x){
-	return 0.2 * sin(x * PI) + 1;
+	return 0.2 * sin(x * PI) + 1.0;
 }
 
 #ifdef PENUMBRA_SHADOWS
     float calculatePenumbra(sampler2D stex, vec4 shadowPos, vec2 texelSize){
         float blockerDepth = 0.0;
         float blockerCount = 0.0;
-        float spacing[7] = float[](15.0, 10.0, 3.0, 3.0, 10.0, 15.0, 100.0);
+        float spacing[7] = float[](10.0, 5.0, 3.0, 3.0, 5.0, 10.0, 100.0);
         int i = 0;
-        for(float x = -28.0; x <= 28.0; x += spacing[i]){
+        for(float x = -18.0; x <= 18.0; x += spacing[i++]){
             int j = 0;
-            for(float y = -28.0; y <= 28.0; y += spacing[j]){
-                float tex1 = texture(stex, shadowPos.xy + vec2(x, y) * texelSize).r;
+            for(float y = -18.0; y <= 18.0; y += spacing[j++]){
+                vec2 samplePos = shadowPos.xy + vec2(x, y) * texelSize;
+                float tex1 = texture(stex, samplePos).r;
                 if(tex1 < shadowPos.z){
                     blockerDepth += tex1;
                     blockerCount += 1.0;
@@ -27,7 +28,7 @@ float getLightIntensity(float x){
         if(blockerCount <= 0.0) return 0.0;
         blockerDepth /= blockerCount;
         if(blockerDepth <= 0.0) return 0.0;
-        return min((shadowPos.z - blockerDepth) * 20.0 / blockerDepth, 20.0);
+        return clamp(((shadowPos.z - blockerDepth) * 20.0 / blockerDepth - distortFactor * 10.0), 0.0, 20.0);
     }
 #endif
 
@@ -97,8 +98,8 @@ float getLightIntensity(float x){
         samplingQuality *= samplingSpacing;
         for(float x = -samplingQuality; x <= samplingQuality; x += samplingSpacing){
             for(float y = -samplingQuality; y <= samplingQuality; y += samplingSpacing){
-                vec3 samplePos = vec3(shadowPos.xy + vec2(x, y) * texelSize, shadowPos.z);
-                color += (texture(shadowtex0, samplePos.xy).r < samplePos.z) ? SHADOW_BRIGHTNESS * lmcoord.y : lightBrightness;
+                vec2 samplePos = shadowPos.xy + vec2(x, y) * texelSize;
+                color += (texture(shadowtex0, samplePos.xy).r < shadowPos.z) ? SHADOW_BRIGHTNESS * lmcoord.y : lightBrightness;
                 samplingCount += 1.0;
             }
         }

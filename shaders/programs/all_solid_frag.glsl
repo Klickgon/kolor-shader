@@ -18,14 +18,16 @@ uniform vec3 fogColor;
 uniform int worldTime;
 uniform int blockEntityId;
 uniform int isEyeInWater;
-
+uniform vec3 sunPosition;
+uniform vec3 shadowLightPosition;
 
 varying vec2 lmcoord;
 varying vec2 texcoord;
 varying vec4 glcolor;
 varying vec4 shadowPos;
-varying vec3 normal;
+varying vec4 normal;
 varying vec3 viewPos3;
+varying float distortFactor;
 
 //fix artifacts when colored shadows are enabled
 const bool shadowcolor0Nearest = true;
@@ -33,7 +35,6 @@ const bool shadowtex0Nearest = true;
 const bool shadowtex1Nearest = true;
 
 #include "/settings.glsl"
-#include "/lib/distort.glsl"
 #include "/lib/lighting.glsl"
 
 void main() {
@@ -49,20 +50,20 @@ void main() {
 		#if COLORED_SHADOWS == 0
 			//for normal shadows, only consider the closest thing to the sun,
 			//regardless of whether or not it's opaque.
-			lm.y = filteredShadow(shadowPos, 1.0 / textureSize(shadowtex0, 0), 2, 0.5, light);
+			lm.y = filteredShadow(shadowPos, 1.0 / textureSize(shadowtex0, 0), SHADOW_FILTER_QUALITY, SHADOW_FILTER_BLUR, light);
             float range = ((lm.y - SHADOW_BRIGHTNESS * lmcoord.y) / (light - SHADOW_BRIGHTNESS * lmcoord.y));
 			sky *= mix(vec3(1.0), getCelestialColor() * intensity, range);
 		#else
-			lm.y = filteredShadow(shadowPos, 1.0 / textureSize(shadowtex1, 0), 2, 0.5, light);
+			lm.y = filteredShadow(shadowPos, 1.0 / textureSize(shadowtex1, 0), SHADOW_FILTER_QUALITY, SHADOW_FILTER_BLUR, light);
             float range = ((lm.y - SHADOW_BRIGHTNESS * lmcoord.y) / (light - SHADOW_BRIGHTNESS * lmcoord.y));
 			sky *= mix(vec3(1.0), getCelestialColor() * intensity, range);
 			#if COLORED_SHADOWS == 1
-				tint = filteredColoredShadow(shadowPos, 1.0 / textureSize(shadowtex0, 0), 2, 0.5, intensitysky);
+				tint = filteredColoredShadow(shadowPos, 1.0 / textureSize(shadowtex0, 0), SHADOW_FILTER_QUALITY, SHADOW_FILTER_BLUR, intensitysky);
 			#endif
 		#endif
 	}
 	color *= texture2D(lightmap, lm);
-	color.rgb *= mix(intensitysky * sky, BLOCKLIGHT, lm.x) + clamp((dot(normalize(shadowPos.xyz), normal) * 0.3), 0.0, 1.0);
+	color.rgb *= mix(intensitysky * sky, BLOCKLIGHT, lm.x) + clamp((dot(normalize(shadowPos.xyz), normal.xyz) * 0.3), 0.0, 1.0);
 	float fogAmount = clamp((length(viewPos3) - fogStart)/(fogEnd - fogStart), 0.0 , 1.0);
 	color.rgb = mix(color.rgb * tint, fogColor, fogAmount);
 	/* DRAWBUFFERS:0 */

@@ -15,6 +15,7 @@ in vec2 mc_midTexCoord;
 varying vec2 lmcoord;
 varying vec2 texcoord;
 varying vec4 glcolor;
+varying float distortFactor;
 
 #include "/settings.glsl"
 #include "/lib/distort.glsl"
@@ -31,21 +32,17 @@ void main() {
 		}
 		else {
 	#endif
-				gl_Position = ftransform();
-				vec3 worldPos = (shadowModelViewInverse * (gl_ModelViewMatrix * gl_Vertex)).xyz + cameraPosition;
-				vec3 vPos = gl_Vertex.xyz;
-				if(mc_Entity.x == 10001.0){
-					gl_Position = shadowModelView * vec4(applyWindEffect(worldPos, vPos) - cameraPosition, 1.0);
-					gl_Position = gl_ProjectionMatrix * gl_Position;
-				}
-				else if(mc_Entity.x == 12412.0){
-					if(mc_midTexCoord.y > texcoord.y){
-						gl_Position = shadowModelView * vec4(applyWindEffect(worldPos, vPos) - cameraPosition, 1.0);
-						gl_Position = gl_ProjectionMatrix * gl_Position;
-					}
-				}
+			gl_Position = ftransform();
+			vec3 worldPos = (shadowModelViewInverse * (gl_ModelViewMatrix * gl_Vertex)).xyz + cameraPosition;
+			vec3 vPos = gl_Vertex.xyz;
+			if(mc_Entity.x == 10601.0 || mc_Entity.x == 2003){
+				gl_Position = shadowModelView * vec4(applyWindEffect(worldPos, vPos) - cameraPosition, 1.0);
+				gl_Position = gl_ProjectionMatrix * gl_Position;
+			} else if((mc_Entity.x == 12412.0) && mc_midTexCoord.y > texcoord.y){
+				gl_Position = shadowModelView * vec4(applyWindEffect(worldPos, vPos) - cameraPosition, 1.0);
+				gl_Position = gl_ProjectionMatrix * gl_Position;
+			}
 			gl_Position.xyz = distort(gl_Position.xyz);
-			
 	#ifdef EXCLUDE_FOLIAGE
 		}
 	#endif

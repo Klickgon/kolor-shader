@@ -15,8 +15,9 @@ varying vec2 lmcoord;
 varying vec2 texcoord;
 varying vec4 glcolor;
 varying vec4 shadowPos;
-varying vec3 normal;
+varying vec4 normal;
 varying vec3 viewPos3;
+varying float distortFactor;
 
 #include "/settings.glsl"
 #include "/lib/distort.glsl"
@@ -31,28 +32,28 @@ void main() {
 	#ifdef EXCLUDE_FOLIAGE
 		//when EXCLUDE_FOLIAGE is enabled, act as if foliage is always facing towards the sun.
 		//in other words, don't darken the back side of it unless something else is casting a shadow on it.
-		if (mc_Entity.x == 10000.0 || mc_Entity.x == 12412.0) lightDot = 1.0;
+		if (mc_Entity.x == 10601.0 || mc_Entity.x == 12412.0) lightDot = 1.0;
 	#endif
 		vec4 viewPos = gl_ModelViewMatrix * gl_Vertex;
 		vec3 vPos = gl_Vertex.xyz;
 		vec3 worldPos = (gbufferModelViewInverse * viewPos).xyz + cameraPosition;
-	if(mc_Entity.x == 10001.0){
+	if(mc_Entity.x == 10601.0 || mc_Entity.x == 2003){
 		viewPos = gbufferModelView * vec4(applyWindEffect(worldPos, vPos) - cameraPosition, 1.0);
 	}
-	if(mc_Entity.x == 12412.0 && mc_midTexCoord.y > texcoord.y){
+	if((mc_Entity.x == 12412.0) && mc_midTexCoord.y > texcoord.y){
 		viewPos = gbufferModelView * vec4(applyWindEffect(worldPos, vPos) - cameraPosition, 1.0);
 	}
 	viewPos3 = viewPos.xyz;
 	if (lightDot > 0.0) { //vertex is facing towards the sun
 		vec4 playerPos = gbufferModelViewInverse * viewPos;
 		shadowPos = shadowProjection * (shadowModelView * playerPos); //convert to shadow ndc space.
+		float bias = computeBias(shadowPos.xyz);
 		shadowPos.xyz = distort(shadowPos.xyz); //apply shadow distortion
 		shadowPos.xyz = shadowPos.xyz * 0.5 + 0.5; //convert from -1 ~ +1 to 0 ~ 1
-		normal = (shadowProjection * vec4(mat3(shadowModelView) * (mat3(gbufferModelViewInverse) * (gl_NormalMatrix * gl_Normal)), 1.0)).xyz;
-        float bias = computeBias(shadowPos.xyz);
+		normal = shadowProjection * vec4(mat3(shadowModelView) * (mat3(gbufferModelViewInverse) * (gl_NormalMatrix * gl_Normal)), 1.0);
     	//apply shadow bias.
         #ifdef NORMAL_BIAS
-            shadowPos.xyz += normal * bias / max(abs(lightDot), 0.1);
+            shadowPos.xyz += normal.xyz * bias / max(abs(lightDot), 0.1);
         #else
             shadowPos.z -= max(bias * (1.0 - lightDot), bias);
         #endif

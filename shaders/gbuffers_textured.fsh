@@ -2,7 +2,6 @@
 
 #define PI 3.1415926535897932384626433832795
 
-
 uniform sampler2D lightmap;
 uniform sampler2D shadowcolor0;
 uniform sampler2D shadowtex0;
@@ -21,7 +20,8 @@ uniform vec3 fogColor;
 uniform int worldTime;
 uniform int blockEntityId;
 uniform int isEyeInWater;
-
+uniform vec3 sunPosition;
+uniform vec3 shadowLightPosition;
 
 varying vec2 lmcoord;
 varying vec2 texcoord;
@@ -30,6 +30,7 @@ varying vec4 shadowPos;
 varying vec3 normal;
 varying vec3 viewPos3;
 varying vec3 glNormal;
+varying float distortFactor;
 
 //fix artifacts when colored shadows are enabled
 const bool shadowcolor0Nearest = true;
@@ -37,7 +38,6 @@ const bool shadowtex0Nearest = true;
 const bool shadowtex1Nearest = true;
 
 #include "/settings.glsl"
-#include "/lib/distort.glsl"
 #include "/lib/lighting.glsl"
 
 void main() {
@@ -53,15 +53,15 @@ void main() {
 		#if COLORED_SHADOWS == 0
 			//for normal shadows, only consider the closest thing to the sun,
 			//regardless of whether or not it's opaque.
-			lm.y = filteredShadow(shadowPos, 1.0 / textureSize(shadowtex0, 0), 2, 0.5, light);
+			lm.y = filteredShadow(shadowPos, 1.0 / textureSize(shadowtex0, 0), SHADOW_FILTER_QUALITY, 0.5, light);
 			tint = vec3(lm.y);
 			sky *= mix(vec3(1.0), getCelestialColor() * intensity, lm.y);
 		#else
 			//for invisible and colored shadows, first check the closest OPAQUE thing to the sun.
-			lm.y = filteredShadow(shadowPos, 1.0 / textureSize(shadowtex1, 0), 2, 0.5, light);
+			lm.y = filteredShadow(shadowPos, 1.0 / textureSize(shadowtex1, 0), SHADOW_FILTER_QUALITY, 0.5, light);
 			sky *= mix(vec3(1.0), getCelestialColor() * intensity, lm.y);
 			#if COLORED_SHADOWS == 1
-				tint = filteredColoredShadow(shadowPos, 1.0 / textureSize(shadowtex0, 0), 2, 0.5, intensitysky);
+				tint = filteredColoredShadow(shadowPos, 1.0 / textureSize(shadowtex0, 0), SHADOW_FILTER_QUALITY, 0.5, intensitysky);
 			#endif
 		#endif
 	}
