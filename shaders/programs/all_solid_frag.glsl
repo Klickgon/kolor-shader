@@ -40,8 +40,11 @@ varying vec2 lmcoord;
 varying vec2 texcoord;
 varying vec4 glcolor;
 varying vec4 shadowPos;
-varying vec4 normal;
+#ifndef TEXTURED
+	varying vec4 normal;
+#endif
 varying vec3 viewPos3;
+varying vec4 playerPos;
 varying float distortFactor;
 
 //fix artifacts when colored shadows are enabled
@@ -60,22 +63,26 @@ void main() {
 	vec3 sky = mix(skyColor, vec3(1.0), intensity - 0.5);
 	float light = mix(31.0 / 32.0 * SHADOW_BRIGHTNESS, 31.0 / 32.0, sqrt(shadowPos.w));
 	vec3 tint = vec3(1.0);
+	#ifdef HAND_HELD_LIGHTING
+		lm.x = mix(lm.x, 1.0, float(heldBlockLightValue != 0) * (max((heldBlockLightValue - length(playerPos.xyz)) / heldBlockLightValue, 0.0)));
+	#endif
 	if (shadowPos.w > 0.0) {
 		//surface is facing towards shadowLightPosition
-		lm.y = filteredShadow(shadowPos, 1.0 / textureSize(TEX, 0), SHADOW_FILTER_QUALITY, SHADOW_FILTER_BLUR, light);
-		#ifdef HAND_HELD_LIGHTING
-			lm.x =  mix(lm.x, 1.0, float(heldBlockLightValue == 0) * (max((heldBlockLightValue - length(eyePosition - shadowPos.xyz)) / heldBlockLightValue, 0.0)));
-		#endif
-        float range = ((lm.y - SHADOW_BRIGHTNESS * lmcoord.y) / (light - SHADOW_BRIGHTNESS * lmcoord.y));
-		sky *= mix(vec3(1.0), getCelestialColor() * intensity, range);
+		lm.y = filteredShadow(shadowPos, SHADOW_FILTER_BLUR, light);
 		#if COLORED_SHADOWS == 1
-			tint = filteredColoredShadow(shadowPos, 1.0 / textureSize(TEX, 0), SHADOW_FILTER_QUALITY, SHADOW_FILTER_BLUR, intensitysky);
+			tint = filteredColoredShadow(shadowPos, SHADOW_FILTER_BLUR, intensitysky);
 		#endif
 	}
+	lm.y = mix(lm.y, min(lmcoord.y, light), clamp((length(viewPos3.xz) - shadowDistance * (1-SHADOW_FADE_LENGTH)) / SHADOW_RENDER_DISTANCE , 0.0, 1.0)); // Shadow Fade
+	float range = (lm.y - SHADOW_BRIGHTNESS * lmcoord.y) / (light - SHADOW_BRIGHTNESS * lmcoord.y);
+	sky *= mix(vec3(1.0), getCelestialColor() * intensity, max(range, 0.0));
 	color *= texture2D(lightmap, lm);
 	lm.x = max(lm.x - lmcoord.y * max(intensity - 0.75, 0.0), 0.0);
-	//color.rgb *= mix(intensitysky * sky - clamp(dot(normalize(shadowPos.xyz), normal.xyz) * 0.003, 0.0, 0.03), vec3(0.0), lm.x) + BLOCKLIGHT * lm.x;
-	color.rgb *= mix(intensitysky * sky - clamp(dot(normalize(shadowPos.xyz), normal.xyz) * 0.003, 0.0, 0.03), BLOCKLIGHT, lm.x);
+	#ifdef TEXTURED
+		color.rgb *= mix(intensitysky * sky, BLOCKLIGHT, lm.x);
+	#else
+		color.rgb *= mix(intensitysky * sky - clamp(dot(normalize(shadowPos.xyz), normal.xyz) * 0.003, 0.0, 0.0003), BLOCKLIGHT, lm.x);
+	#endif
 	float fogAmount = clamp((length(viewPos3) - fogStart)/(fogEnd - fogStart), 0.0 , 1.0);
 	color.rgb = mix(color.rgb * tint, fogColor, fogAmount);
 	/* DRAWBUFFERS:0 */

@@ -7,14 +7,18 @@
 #define COLORED_SHADOWS 1 //0: Stained glass will cast ordinary shadows. 1: Stained glass will cast colored shadows. 2: Stained glass will not cast any shadows. [0 1 2]
 #define PENUMBRA_SHADOWS
 #define SHADOW_FADE
+#define SHADOW_FADE_LENGTH 0.1 //[0 0.05 0.1 0.15 0.2 0.25]
 #define HAND_HELD_LIGHTING
 #define SHADOW_FILTER_QUALITY 2 //[0 1 2 3 4]
 #define SHADOW_FILTER_BLUR 0.5 //[0.25 0.5 0.75 1 1.25 1.5 1.75 2]
+#define SHADOW_RENDER_DISTANCE 10 //[0 2 4 6 8 10 12 14 16 18 20 22 24 26 28 30 32]
 
 #define BLOCKLIGHT (vec3(0.77, 0.62, 0.46) * 2)
 #define SUNCOLOR (vec3(0.89, 0.80, 0.72) * 2)
 #define MOONCOLOR (vec3(0.94, 0.91, 0.86) * 1.4)
 
+const float shadowDistance = 16.0 * SHADOW_RENDER_DISTANCE;
 const int shadowMapResolution = 3072; //Resolution of the shadow map. Higher numbers mean more accurate shadows. [128 256 512 1024 2048 3072 4096 8192]
 const float sunPathRotation = -30.0; // [-40.0 -30.0 -20.0 -10.0 0.0 10.0 20.0 30.0 40.0]
 const int noiseTextureResolution = 1024;
+const float shadowDistanceRenderMul = 1.0;
