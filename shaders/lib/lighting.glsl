@@ -37,9 +37,7 @@ vec4 getNoise(vec2 coord){
   return texelFetch(noisetex, noiseCoord, 0);
 }
 
-mat2 getRotationMat2(){
-    float noise = getNoise(texcoord).r;
-
+mat2 getRotationMat2(float noise){
     float theta = noise * radians(360.0); // random angle using noise value
     float cosTheta = cos(theta);
     float sinTheta = sin(theta);
@@ -49,13 +47,14 @@ mat2 getRotationMat2(){
 
 #ifdef PENUMBRA_SHADOWS
 
-    float calculatePenumbra(sampler2D stex, vec4 shadowPos){
+    float calculatePenumbra(sampler2D stex, vec4 shadowPos, vec4 noise){
         float blockerDepth = 0.0;
         float blockerCount = 0.0;
-        mat2 rotation = getRotationMat2();
+        mat2 rotation = getRotationMat2(noise.r);
+        vec2 randOffset = (vec2(noise.g, noise.b) - 0.5) * 0.5; 
         vec2 penumPattern[13] = vec2[](vec2(0.0), vec2(1.0, 1.0), vec2(-1.0, -1.0), vec2(1.0, -1.0), vec2(-1.0, 1.0), vec2(0.25, 0.45), vec2(-0.25, -0.45), vec2(0.45, -0.25), vec2(-0.45, 0.25), vec2(-1.15, 0.0), vec2(1.15, 0.0), vec2(0.0, -1.15), vec2(0.0, 1.15));
         for(int i = 0; i < 13; i++){
-            vec2 samplePos = shadowPos.xy + penumPattern[i] * 20.0 * rotation / shadowMapResolution;
+            vec2 samplePos = shadowPos.xy + ((penumPattern[i] + randOffset) * 20.0 * rotation / shadowMapResolution);
             float tex1 = texture(stex, samplePos).r;
             if(tex1 < shadowPos.z){
                 blockerDepth += tex1;
@@ -75,14 +74,15 @@ mat2 getRotationMat2(){
     float filteredShadow(vec4 shadowPos, float samplingSpacing, float lightBrightness){
         float color = 0.0;
         vec2 pattern[SAMPLING_PATTERN_LENGTH] = SAMPLING_PATTERN;
-
-        mat2 rotation = getRotationMat2();
+        vec4 noise = getNoise(texcoord);
+        mat2 rotation = getRotationMat2(noise);
 
         #ifdef PENUMBRA_SHADOWS
-            samplingSpacing += calculatePenumbra(shadowtex0, shadowPos);
+            samplingSpacing += calculatePenumbra(shadowtex0, shadowPos, noise);
         #endif
+        vec2 randOffset = (vec2(noise.g, noise.b) - 0.5) * 0.5; 
         for(int i = 0; i < SAMPLING_PATTERN_LENGTH; i++){
-            vec3 samplePos = vec3(shadowPos.xy + pattern[i] * samplingSpacing * rotation / shadowMapResolution, shadowPos.z);
+            vec3 samplePos = vec3(shadowPos.xy + ((pattern[i]+ randOffset) * samplingSpacing * rotation / shadowMapResolution), shadowPos.z);
             float tex1 = texture(shadowtex1, samplePos.xy).r;
             float tex0 = texture(shadowtex0, samplePos.xy).r;
             if(tex1 > tex0) {
@@ -96,9 +96,10 @@ mat2 getRotationMat2(){
 
         vec3 filteredColoredShadow(vec4 shadowPos, float samplingQuality, float samplingSpacing, float intensitysky){
             vec3 tint = vec3(0.0);
+            
             float coloredSamplingCount = 0.0;
             #ifdef PENUMBRA_SHADOWS
-                samplingSpacing += calculatePenumbra(shadowtex0, shadowPos);
+                samplingSpacing += calculatePenumbra(shadowtex0, shadowPos, noise);
             #endif
             samplingQuality *= samplingSpacing;
             for(float x = -samplingQuality; x <= samplingQuality; x += samplingSpacing){
@@ -127,15 +128,17 @@ mat2 getRotationMat2(){
 #else 
 
     float filteredShadow(vec4 shadowPos, float samplingSpacing, float lightBrightness){
+        vec4 noise = getNoise(texcoord);
         float color = 0.0;
         vec2 pattern[SAMPLING_PATTERN_LENGTH] = SAMPLING_PATTERN;
-        mat2 rotation = getRotationMat2(); // matrix to rotate the offset around the original position by the angle
+        mat2 rotation = getRotationMat2(noise.r); // matrix to rotate the offset around the original position by the angle
 
         #ifdef PENUMBRA_SHADOWS
-            samplingSpacing += calculatePenumbra(shadowtex0, shadowPos);
+            samplingSpacing += calculatePenumbra(shadowtex0, shadowPos, noise);
         #endif
+        vec2 randOffset = (vec2(noise.g, noise.b) - 0.5) * 0.5; 
         for(int i = 0; i < SAMPLING_PATTERN_LENGTH; i++){
-            vec2 samplePos = shadowPos.xy + pattern[i] * rotation * samplingSpacing / shadowMapResolution;
+            vec2 samplePos = shadowPos.xy + ((pattern[i] + randOffset) * rotation * samplingSpacing / shadowMapResolution);
             color += (texture(shadowtex0, samplePos.xy).r < shadowPos.z) ? SHADOW_BRIGHTNESS * lmcoord.y : lightBrightness;
         }
         return color / SAMPLING_PATTERN_LENGTH;
