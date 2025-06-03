@@ -6,6 +6,7 @@ uniform mat4 gbufferModelView;
 uniform mat4 gbufferModelViewInverse;
 uniform float frameTimeCounter;
 uniform vec3 cameraPosition;
+uniform mat4 shadowProjection;
 uniform mat4 shadowProjectionInverse;
 uniform mat4 shadowModelView;
 uniform mat4 shadowModelViewInverse;
@@ -27,20 +28,17 @@ void main() {
 	glcolor = gl_Color;
 
 	#ifdef EXCLUDE_FOLIAGE
-		if (mc_Entity.x == 10000.0) {
+		if (mc_Entity.x == 12412.0 || mc_Entity.x == 10601.0) {
 			gl_Position = vec4(10.0);
 		}
 		else {
 	#endif
 			gl_Position = ftransform();
-			vec3 worldPos = (shadowModelViewInverse * (gl_ModelViewMatrix * gl_Vertex)).xyz + cameraPosition;
-			vec3 vPos = gl_Vertex.xyz;
-			if(mc_Entity.x == 10601.0 || mc_Entity.x == 2003){
-				gl_Position = shadowModelView * vec4(applyWindEffect(worldPos, vPos) - cameraPosition, 1.0);
-				gl_Position = gl_ProjectionMatrix * gl_Position;
-			} else if((mc_Entity.x == 12412.0) && mc_midTexCoord.y > texcoord.y){
-				gl_Position = shadowModelView * vec4(applyWindEffect(worldPos, vPos) - cameraPosition, 1.0);
-				gl_Position = gl_ProjectionMatrix * gl_Position;
+			if(mc_Entity.x == 10601.0 || mc_Entity.x == 2003.0 || (mc_Entity.x == 12412.0 && mc_midTexCoord.y > texcoord.y)){
+				vec3 worldPos = (shadowModelViewInverse * (shadowProjectionInverse * gl_Position)).xyz + cameraPosition;
+				worldPos = applyWindEffect(worldPos);
+				gl_Position = shadowModelView * vec4(worldPos - cameraPosition, 1.0);
+				gl_Position = shadowProjection * gl_Position;
 			}
 			gl_Position.xyz = distort(gl_Position.xyz);
 	#ifdef EXCLUDE_FOLIAGE

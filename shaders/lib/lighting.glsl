@@ -1,21 +1,25 @@
+#define BLOCKLIGHT (vec3(0.77, 0.62, 0.46) * 2)
+#define SUNCOLOR (vec3(0.89, 0.80, 0.72) * 2)
+#define MOONCOLOR (vec3(0.94, 0.91, 0.86) * 1.4)
+
 #if SHADOW_FILTER_QUALITY == 0
     #define SAMPLING_PATTERN vec2[](vec2(0.0))
     #define SAMPLING_PATTERN_LENGTH 1
 #endif
 #if SHADOW_FILTER_QUALITY == 1
-    #define SAMPLING_PATTERN vec2[](vec2(0.0), vec2(1.0, 1.0), vec2(-1.0, -1.0), vec2(1.0, -1.0), vec2(-1.0, 1.0))
+    #define SAMPLING_PATTERN vec2[](vec2(0.0), vec2(1.0223, 1.0341), vec2(-1.045, -1.012), vec2(1.0123, -1.0312), vec2(-1.053, 1.0512))
     #define SAMPLING_PATTERN_LENGTH 5
 #endif
 #if SHADOW_FILTER_QUALITY == 2
-    #define SAMPLING_PATTERN vec2[](vec2(0.0), vec2(1.0, 1.0), vec2(-1.0, -1.0), vec2(1.0, -1.0), vec2(-1.0, 1.0), vec2(0.25, 0.45), vec2(-0.25, -0.45), vec2(0.45, -0.25), vec2(-0.45, 0.25))
+    #define SAMPLING_PATTERN vec2[](vec2(0.0), vec2(1.0223, 1.0341), vec2(-1.045, -1.012), vec2(1.0123, -1.0312), vec2(-1.053, 1.0512), vec2(0.25412, 0.45124), vec2(-0.25126, -0.45521), vec2(0.45521, -0.255212), vec2(-0.45521, 0.255521))
     #define SAMPLING_PATTERN_LENGTH 9
 #endif
 #if SHADOW_FILTER_QUALITY == 3
-    #define SAMPLING_PATTERN vec2[](vec2(0.0), vec2(1.0, 1.0), vec2(-1.0, -1.0), vec2(1.0, -1.0), vec2(-1.0, 1.0), vec2(0.25, 0.45), vec2(-0.25, -0.45), vec2(0.45, -0.25), vec2(-0.45, 0.25), vec2(-1.05, 0.0), vec2(1.05, 0.0), vec2(0.0, -1.05), vec2(0.0, 1.05))
+    #define SAMPLING_PATTERN vec2[](vec2(0.0), vec2(1.0223, 1.0341), vec2(-1.045, -1.012), vec2(1.0123, -1.0312), vec2(-1.053, 1.0512), vec2(0.25412, 0.45124), vec2(-0.25126, -0.45521), vec2(0.45521, -0.255212), vec2(-0.45521, 0.255521), vec2(-1.26132, 0.0621), vec2(1.2412, 0.0421), vec2(0.0642, -1.2521), vec2(0.0212, 1.24421))
     #define SAMPLING_PATTERN_LENGTH 13
 #endif
 #if SHADOW_FILTER_QUALITY == 4
-    #define SAMPLING_PATTERN vec2[](vec2(0.0), vec2(1.0, 1.0), vec2(-1.0, -1.0), vec2(1.0, -1.0), vec2(-1.0, 1.0), vec2(0.25, 0.45), vec2(-0.25, -0.45), vec2(0.45, -0.25), vec2(-0.45, 0.25), vec2(-1.05, 0.0), vec2(1.05, 0.0), vec2(0.0, -1.05), vec2(0.0, 1.05), vec2(-0.15, 0.85), vec2(0.15, -0.85), vec2(-0.85, -0.15), vec2(0.85, 0.15))
+    #define SAMPLING_PATTERN vec2[](vec2(0.0), vec2(1.0223, 1.0341), vec2(-1.045, -1.012), vec2(1.0123, -1.0312), vec2(-1.053, 1.0512), vec2(0.25412, 0.45124), vec2(-0.25126, -0.45521), vec2(0.45521, -0.255212), vec2(-0.45521, 0.255521), vec2(-1.26132, 0.0621), vec2(1.2412, 0.0421), vec2(0.0642, -1.2521), vec2(0.0212, 1.24421), vec2(-0.45531, 0.8512), vec2(0.45332, -0.851562), vec2(-0.85423, -0.45422), vec2(0.85422, 0.45422))
     #define SAMPLING_PATTERN_LENGTH 17
 #endif
 
@@ -29,7 +33,7 @@ float getLightIntensity(float x){
 }
 
 vec4 getNoise(vec2 coord){
-  ivec2 noiseCoord = ivec2(coord * vec2(viewWidth * viewWidth, viewHeight * viewHeight)) % noiseTextureResolution; // wrap to range of noiseTextureResolution
+  ivec2 noiseCoord = ivec2(coord * vec2(viewWidth, viewHeight) * 1000000.0) % noiseTextureResolution; // wrap to range of noiseTextureResolution
   return texelFetch(noisetex, noiseCoord, 0);
 }
 

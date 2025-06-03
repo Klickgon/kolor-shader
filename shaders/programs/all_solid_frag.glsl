@@ -23,6 +23,7 @@ uniform vec3 sunPosition;
 uniform vec3 shadowLightPosition;
 uniform int heldBlockLightValue;
 uniform vec3 eyePosition;
+uniform vec3 eyeCameraPosition;
 uniform float viewWidth;
 uniform float viewHeight;
 
@@ -43,14 +44,11 @@ varying vec4 shadowPos;
 #ifndef TEXTURED
 	varying vec4 normal;
 #endif
-varying vec3 viewPos3;
-varying vec4 playerPos;
+varying vec3 viewPos;
+varying vec3 playerPos;
+varying vec3 worldPos;
 varying float distortFactor;
 
-//fix artifacts when colored shadows are enabled
-const bool shadowcolor0Nearest = true;
-const bool shadowtex0Nearest = true;
-const bool shadowtex1Nearest = true;
 
 #include "/settings.glsl"
 #include "/lib/lighting.glsl"
@@ -64,16 +62,18 @@ void main() {
 	float light = mix(31.0 / 32.0 * SHADOW_BRIGHTNESS, 31.0 / 32.0, sqrt(shadowPos.w));
 	vec3 tint = vec3(1.0);
 	#ifdef HAND_HELD_LIGHTING
-		lm.x = mix(lm.x, 1.0, float(heldBlockLightValue != 0) * (max((heldBlockLightValue - length(playerPos.xyz)) / heldBlockLightValue, 0.0)));
+		lm.x = mix(lm.x, 1.0, float(heldBlockLightValue != 0) * (max((heldBlockLightValue - length(worldPos - eyePosition))/ heldBlockLightValue, 0.0)));
 	#endif
 	if (shadowPos.w > 0.0) {
 		//surface is facing towards shadowLightPosition
 		lm.y = filteredShadow(shadowPos, SHADOW_FILTER_BLUR, light);
 		#if COLORED_SHADOWS == 1
-			tint = filteredColoredShadow(shadowPos, SHADOW_FILTER_BLUR, intensitysky);
+			tint = filteredColoredShadow(shadowPos, SHADOW_FILTER_QUALITY, SHADOW_FILTER_BLUR, intensitysky);
 		#endif
 	}
-	lm.y = mix(lm.y, min(lmcoord.y, light), clamp((length(viewPos3.xz) - shadowDistance * (1-SHADOW_FADE_LENGTH)) / SHADOW_RENDER_DISTANCE , 0.0, 1.0)); // Shadow Fade
+	#ifdef SHADOW_FADE
+		lm.y = mix(lm.y, min(lmcoord.y, light), clamp((length(viewPos) - shadowDistance * (1-SHADOW_FADE_LENGTH)) / SHADOW_RENDER_DISTANCE , 0.0, 1.0));
+	#endif
 	float range = (lm.y - SHADOW_BRIGHTNESS * lmcoord.y) / (light - SHADOW_BRIGHTNESS * lmcoord.y);
 	sky *= mix(vec3(1.0), getCelestialColor() * intensity, max(range, 0.0));
 	color *= texture2D(lightmap, lm);
@@ -83,7 +83,7 @@ void main() {
 	#else
 		color.rgb *= mix(intensitysky * sky - clamp(dot(normalize(shadowPos.xyz), normal.xyz) * 0.003, 0.0, 0.0003), BLOCKLIGHT, lm.x);
 	#endif
-	float fogAmount = clamp((length(viewPos3) - fogStart)/(fogEnd - fogStart), 0.0 , 1.0);
+	float fogAmount = clamp((length(viewPos) - fogStart)/(fogEnd - fogStart), 0.0 , 1.0);
 	color.rgb = mix(color.rgb * tint, fogColor, fogAmount);
 	/* DRAWBUFFERS:0 */
 	gl_FragData[0] = color; //gcolor
