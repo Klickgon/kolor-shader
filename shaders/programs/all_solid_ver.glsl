@@ -15,7 +15,7 @@ varying vec2 lmcoord;
 varying vec2 texcoord;
 varying vec4 glcolor;
 varying vec4 shadowPos;
-#ifndef TEXTURED
+#if TEXTURED != 1
 	varying vec4 normal;
 #endif
 varying vec3 viewPos;
@@ -32,7 +32,7 @@ void main() {
 	lmcoord  = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
 	glcolor = gl_Color;
 
-	#ifndef TEXTURED
+	#if TEXTURED != 1
 		float lightDot;
 		if (mc_Entity.x == 10601.0 || mc_Entity.x == 12412.0) lightDot = 1.0;
 		else lightDot = dot(normalize(shadowLightPosition), normalize(gl_NormalMatrix * gl_Normal));
@@ -53,11 +53,11 @@ void main() {
 		float bias = computeBias(shadowPos.xyz);
 		shadowPos.xyz = distort(shadowPos.xyz); //apply shadow distortion
 		shadowPos.xyz = shadowPos.xyz * 0.5 + 0.5; //convert from -1 ~ +1 to 0 ~ 1
-		#ifndef TEXTURED
+		#if TEXTURED != 1
 			normal = shadowProjection * vec4(mat3(shadowModelView) * (mat3(gbufferModelViewInverse) * (gl_NormalMatrix * gl_Normal)), 1.0);
 			//apply shadow bias.
 			#ifdef NORMAL_BIAS
-				shadowPos.xyz += normal.xyz * bias / max(abs(lightDot), 0.35);
+				shadowPos.xyz += normal.xyz * bias / max(abs(lightDot), 0.1);
 			#else
 				shadowPos.z -= max(bias * (1.0 - lightDot), bias);
 			#endif

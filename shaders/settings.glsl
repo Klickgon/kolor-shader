@@ -6,20 +6,20 @@
 #define SHADOW_BRIGHTNESS 0.75 //Light levels are multiplied by this number when the surface is in shadows [0.00 0.05 0.10 0.15 0.20 0.25 0.30 0.35 0.40 0.45 0.50 0.55 0.60 0.65 0.70 0.75 0.80 0.85 0.90 0.95 1.00]
 #define COLORED_SHADOWS 0 //0: Stained glass will cast ordinary shadows. 1: Stained glass will cast colored shadows. 2: Stained glass will not cast any shadows. [0 1 2]
 #define PENUMBRA_SHADOWS
-#define SHADOW_FADE
 #define SHADOW_FADE_LENGTH 0.1 //[0 0.05 0.1 0.15 0.2 0.25]
 #define HAND_HELD_LIGHTING
 #define SHADOW_FILTER_QUALITY 2 //[0 1 2 3 4]
-#define SHADOW_FILTER_BLUR 0.5 //[0.25 0.5 0.75 1 1.25 1.5 1.75 2]
-#define SHADOW_RENDER_DISTANCE 10 //[0 2 4 6 8 10 12 14 16 18 20 22 24 26 28 30 32]
+#define SHADOW_FILTER_BLUR 1 //[0.25 0.5 0.75 1 1.25 1.5 1.75 2]
+#define SHADOW_RENDER_DISTANCE 0.2 //[0.0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 2.4 2.6 2.8 3.0 3.2]
+//#define SHADOW_RENDER_DISTANCE 2 //[0 2 4 6 0.8 0.10 0.12 0.14 0.16 0.18 0.20 0.22 0.24 0.26 0.28 0.30 0.32]
 
 //fix artifacts when colored shadows are enabled
 const bool shadowcolor0Nearest = true;
 const bool shadowtex0Nearest = true;
 const bool shadowtex1Nearest = true;
 
-const float shadowDistance = 16.0 * SHADOW_RENDER_DISTANCE;
+const float shadowDistance = 160.0;
 const int shadowMapResolution = 3072; //Resolution of the shadow map. Higher numbers mean more accurate shadows. [128 256 512 1024 2048 3072 4096 8192]
 const float sunPathRotation = -30.0; // [-40.0 -30.0 -20.0 -10.0 0.0 10.0 20.0 30.0 40.0]
 const int noiseTextureResolution = 1024;
-const float shadowDistanceRenderMul = 1.0;
+const float shadowDistanceRenderMul = SHADOW_RENDER_DISTANCE;

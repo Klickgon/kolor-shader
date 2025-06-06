@@ -41,7 +41,7 @@ varying vec2 lmcoord;
 varying vec2 texcoord;
 varying vec4 glcolor;
 varying vec4 shadowPos;
-#ifndef TEXTURED
+#if TEXTURED != 1
 	varying vec4 normal;
 #endif
 varying vec3 viewPos;
@@ -66,25 +66,30 @@ void main() {
 	#endif
 	if (shadowPos.w > 0.0) {
 		//surface is facing towards shadowLightPosition
-		lm.y = filteredShadow(shadowPos, SHADOW_FILTER_BLUR, light);
 		#if COLORED_SHADOWS == 1
-			tint = filteredColoredShadow(shadowPos, SHADOW_FILTER_QUALITY, SHADOW_FILTER_BLUR, intensitysky);
+			vec4 coloredShadow = filteredShadow(shadowPos, SHADOW_FILTER_BLUR, intensitysky, light);
+			tint = coloredShadow.rgb;
+			lm.y = coloredShadow.a;
+		#else 
+			lm.y = filteredShadow(shadowPos, SHADOW_FILTER_BLUR, light);
 		#endif
 	}
-	#ifdef SHADOW_FADE
-		lm.y = mix(lm.y, min(lmcoord.y, light), clamp((length(viewPos) - shadowDistance * (1-SHADOW_FADE_LENGTH)) / SHADOW_RENDER_DISTANCE , 0.0, 1.0));
-	#endif
+	float shadowRenderDis = (shadowDistance * shadowDistanceRenderMul);
+	lm.y = mix(lm.y, min(lmcoord.y, light), clamp((length(viewPos) - shadowRenderDis * (1-SHADOW_FADE_LENGTH)) / (shadowRenderDis - shadowRenderDis * (1-SHADOW_FADE_LENGTH)), 0.0, 1.0));
 	float range = (lm.y - SHADOW_BRIGHTNESS * lmcoord.y) / (light - SHADOW_BRIGHTNESS * lmcoord.y);
 	sky *= mix(vec3(1.0), getCelestialColor() * intensity, max(range, 0.0));
 	color *= texture2D(lightmap, lm);
 	lm.x = max(lm.x - lmcoord.y * max(intensity - 0.75, 0.0), 0.0);
-	#ifdef TEXTURED
+	#if TEXTURED == 1
 		color.rgb *= mix(intensitysky * sky, BLOCKLIGHT, lm.x);
 	#else
 		color.rgb *= mix(intensitysky * sky - clamp(dot(normalize(shadowPos.xyz), normal.xyz) * 0.003, 0.0, 0.0003), BLOCKLIGHT, lm.x);
 	#endif
 	float fogAmount = clamp((length(viewPos) - fogStart)/(fogEnd - fogStart), 0.0 , 1.0);
-	color.rgb = mix(color.rgb * tint, fogColor, fogAmount);
+	color.rgb = mix(color.rgb, fogColor, fogAmount);
+	color.rgb = pow(color.rgb, vec3(2.2));
+	color.rgb *= tint;
+	color.rgb = pow(color.rgb, vec3(1.0/2.2));
 	/* DRAWBUFFERS:0 */
 	gl_FragData[0] = color; //gcolor
 }
