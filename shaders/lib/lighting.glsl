@@ -1,6 +1,6 @@
-#define BLOCKLIGHT (vec3(0.73, 0.62, 0.46) * 2)
-#define SUNCOLOR (vec3(0.89, 0.80, 0.68) * 2)
-#define MOONCOLOR (vec3(0.94, 0.91, 0.86) * 1.4)
+#define BLOCKLIGHT (vec3(0.73, 0.62, 0.46) * 3)
+#define SUNCOLOR (vec3(0.86, 0.52, 0.22) * 15)
+#define MOONCOLOR (vec3(0.74, 0.76, 0.85) * 4)
 
 #if SHADOW_FILTER_QUALITY == 0
     #define SAMPLING_PATTERN vec2[](vec2(0.0))
@@ -115,10 +115,10 @@ mat2 getRotationMat2(float noise){
                         //make colors more intense when the shadow light color is more opaque.
                         shadowLightColor.rgb = mix(vec3(1.0), shadowLightColor.rgb, shadowLightColor.a);
                         //also make colors less intense when the block light level is high.
-                        shadowLightColor.rgb = mix(shadowLightColor.rgb, vec3(1.0), lmcoord.x);
+                        //shadowLightColor.rgb = mix(shadowLightColor.rgb, vec3(1.0), lmcoord.x);
                         //apply the color
                         color.rgb += shadowLightColor.rgb * intensitysky;
-                        color.a += lightBrightness;
+                        color.a += lightBrightness * lmcoord.y;
                     } else {
                         color.rgb += vec3(1.0);
                         color.a += lightBrightness;

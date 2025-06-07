@@ -27,7 +27,6 @@ uniform vec3 eyeCameraPosition;
 uniform float viewWidth;
 uniform float viewHeight;
 
-
 #if COLORED_SHADOWS == 0
 	//for normal shadows, only consider the closest thing to the sun,
 	//regardless of whether or not it's opaque.
@@ -53,12 +52,21 @@ varying float distortFactor;
 #include "/settings.glsl"
 #include "/lib/lighting.glsl"
 
+vec3 sRGB_to_Linear(vec3 color){
+	return pow(color, vec3(2.2));
+}
+
+vec3 Linear_to_sRGB(vec3 color){
+	return pow(color, vec3(1.0/2.2));
+}
+
 void main() {
-	vec4 color = texture2D(texture, texcoord) * glcolor;
+	vec4 color = texture2D(texture, texcoord)* glcolor;
+	color.rgb = pow(color.rgb, vec3(2.2));
 	float intensity = getLightIntensity(sunAngle);
 	vec2 lm = lmcoord;
 	float intensitysky = (0.25 * intensity) + 0.5;
-	vec3 sky = mix(skyColor, vec3(1.0), intensity - 0.5);
+	vec3 sky = mix(sRGB_to_Linear(skyColor * lmcoord.y), vec3(0.10), intensity - 0.5);
 	float light = mix(31.0 / 32.0 * SHADOW_BRIGHTNESS, 31.0 / 32.0, sqrt(shadowPos.w));
 	vec3 tint = vec3(1.0);
 	#ifdef HAND_HELD_LIGHTING
@@ -79,17 +87,15 @@ void main() {
 	float range = (lm.y - SHADOW_BRIGHTNESS * lmcoord.y) / (light - SHADOW_BRIGHTNESS * lmcoord.y);
 	sky *= mix(vec3(1.0), getCelestialColor() * intensity, max(range, 0.0));
 	color *= texture2D(lightmap, lm);
-	lm.x = max(lm.x - lmcoord.y * max(intensity - 0.75, 0.0), 0.0);
+	lm.x /= (1+(lmcoord.y * intensitysky));
 	#if TEXTURED == 1
-		color.rgb *= mix(intensitysky * sky, BLOCKLIGHT, lm.x);
+		color.rgb *= mix(intensitysky * sky * tint, BLOCKLIGHT, lm.x);
 	#else
-		color.rgb *= mix(intensitysky * sky - clamp(dot(normalize(shadowPos.xyz), normal.xyz) * 0.003, 0.0, 0.0003), BLOCKLIGHT, lm.x);
+		color.rgb *= mix(intensitysky * sky * tint - clamp(dot(normalize(shadowPos.xyz), normal.xyz) * 0.003, 0.0, 0.0003), BLOCKLIGHT, lm.x);
 	#endif
 	float fogAmount = clamp((length(viewPos) - fogStart)/(fogEnd - fogStart), 0.0 , 1.0);
-	color.rgb = mix(color.rgb, fogColor, fogAmount);
-	color.rgb = pow(color.rgb, vec3(2.2));
-	color.rgb *= tint;
-	color.rgb = pow(color.rgb, vec3(1.0/2.2));
+	color.rgb = mix(color.rgb, sRGB_to_Linear(fogColor), fogAmount);
+	color.rgb = Linear_to_sRGB(color.rgb);
 	/* DRAWBUFFERS:0 */
 	gl_FragData[0] = color; //gcolor
 }

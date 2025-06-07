@@ -68,5 +68,5 @@ void main() {
 		shadowPos = vec4(0.0); //mark that this vertex does not need to check the shadow map.
 	}
 	shadowPos.w = lightDot;
-	gl_Position = gl_ProjectionMatrix * vec4(viewPos,1.0);
+	gl_Position = gl_ProjectionMatrix * vec4(viewPos, 1.0);
 }
