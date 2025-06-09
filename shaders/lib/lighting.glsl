@@ -1,6 +1,6 @@
 #define BLOCKLIGHT (vec3(0.73, 0.62, 0.46) * 3)
-#define SUNCOLOR (vec3(0.86, 0.52, 0.22) * 15)
-#define MOONCOLOR (vec3(0.74, 0.76, 0.85) * 4)
+#define SUNCOLOR (vec3(0.86, 0.52, 0.26) * 15)
+#define MOONCOLOR (vec3(0.64, 0.66, 0.85) * 4)
 
 #if SHADOW_FILTER_QUALITY == 0
     #define SAMPLING_PATTERN vec2[](vec2(0.0))
@@ -45,6 +45,27 @@ mat2 getRotationMat2(float noise){
     return mat2(cosTheta, -sinTheta, sinTheta, cosTheta); 
 }
 
+vec3 projectAndDivide(mat4 projectionMatrix, vec3 position){
+  vec4 homPos = projectionMatrix * vec4(position, 1.0);
+  return homPos.xyz / homPos.w;
+}
+
+#ifdef SCREEN_SPACE_SHADOWS
+
+    bool screenSpaceShadow(vec3 shadowViewPos, vec3 viewPos){
+        vec3 ray = shadowViewPos - viewPos;
+        vec3 rayStep = ray / 8.0;
+        for(int i = 0; i < 8; i++){
+            viewPos += rayStep;
+            vec3 ssPos = projectAndDivide(gbufferProjection, viewPos) * 0.5 + 0.5;
+            //float depth = ssPos.xy;
+            if(viewPos.z < ssPos.z) return true;
+        }
+        return false;
+    }
+
+#endif
+
 #ifdef PENUMBRA_SHADOWS
 
     float calculatePenumbra(sampler2D stex, vec4 shadowPos, vec4 noise){
@@ -72,6 +93,16 @@ mat2 getRotationMat2(float noise){
 #if COLORED_SHADOWS == 0
 
     float filteredShadow(vec4 shadowPos, float samplingSpacing, float lightBrightness){
+        vec3 ray = shadowViewPos - viewPos;
+        vec3 rayStep = ray / 8.0;
+        for(int i = 0; i < 8; i++){
+            viewPos += rayStep;
+            vec3 ssPos = projectAndDivide(gbufferProjection, viewPos) * 0.5 + 0.5;
+            float depth = texture(depthtex2, ssPos.xy).r;
+            if(depth < ssPos.z) return true;
+        }
+        return false;
+    }
         vec4 noise = getNoise(texcoord);
         float color = 0.0;
         vec2 pattern[SAMPLING_PATTERN_LENGTH] = SAMPLING_PATTERN;

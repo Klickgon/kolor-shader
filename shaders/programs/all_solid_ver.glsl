@@ -22,6 +22,7 @@ varying vec3 viewPos;
 varying float distortFactor;
 varying vec3 playerPos;
 varying vec3 worldPos;
+varying vec4 shadowViewPos;
 
 #include "/settings.glsl"
 #include "/lib/distort.glsl"
@@ -49,9 +50,9 @@ void main() {
 		viewPos = (gbufferModelView * vec4(applyWindEffect(worldPos) - cameraPosition, 1.0)).xyz;
 	}
 	if (lightDot > 0.0) { //vertex is facing towards the sun
-		shadowPos = shadowProjection * (shadowModelView * vec4(playerPos, 1.0)); //convert to shadow clip pos.
-		float bias = computeBias(shadowPos.xyz);
-		shadowPos.xyz = distort(shadowPos.xyz); //apply shadow distortion
+		shadowViewPos = shadowProjection * (shadowModelView * vec4(playerPos, 1.0)); //convert to shadow clip pos.
+		float bias = computeBias(shadowViewPos.xyz);
+		shadowPos.xyz = distort(shadowViewPos.xyz); //apply shadow distortion
 		shadowPos.xyz = shadowPos.xyz * 0.5 + 0.5; //convert from -1 ~ +1 to 0 ~ 1
 		#if TEXTURED != 1
 			normal = shadowProjection * vec4(mat3(shadowModelView) * (mat3(gbufferModelViewInverse) * (gl_NormalMatrix * gl_Normal)), 1.0);

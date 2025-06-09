@@ -1,6 +1,5 @@
 #version 120
 
-#define DRAW_SHADOW_MAP gcolor //Configures which buffer to draw to the screen [gcolor shadowcolor0 shadowtex0 shadowtex1]
 
 uniform float frameTimeCounter;
 uniform sampler2D gcolor;
@@ -9,6 +8,8 @@ uniform sampler2D shadowtex0;
 uniform sampler2D shadowtex1;
 
 varying vec2 texcoord;
+
+#include "/settings.glsl"
 
 void main() {
 	vec3 color = texture2D(DRAW_SHADOW_MAP, texcoord).rgb;

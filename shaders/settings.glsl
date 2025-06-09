@@ -11,7 +11,8 @@
 #define SHADOW_FILTER_QUALITY 2 //[0 1 2 3 4]
 #define SHADOW_FILTER_BLUR 1 //[0.25 0.5 0.75 1 1.25 1.5 1.75 2]
 #define SHADOW_RENDER_DISTANCE 0.2 //[0.0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 2.4 2.6 2.8 3.0 3.2]
-//#define SHADOW_RENDER_DISTANCE 2 //[0 2 4 6 0.8 0.10 0.12 0.14 0.16 0.18 0.20 0.22 0.24 0.26 0.28 0.30 0.32]
+#define DRAW_SHADOW_MAP gcolor //Configures which buffer to draw to the screen [gcolor shadowcolor0 shadowtex0 shadowtex1]
+#define SCREEN_SPACE_SHADOWS
 
 //fix artifacts when colored shadows are enabled
 const bool shadowcolor0Nearest = true;
