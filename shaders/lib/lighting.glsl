@@ -33,7 +33,7 @@ float getLightIntensity(float x){
 }
 
 vec4 getNoise(vec2 coord){
-  ivec2 noiseCoord = ivec2(coord * vec2(viewWidth, viewHeight) * 1000000.0) % noiseTextureResolution; // wrap to range of noiseTextureResolution
+  ivec2 noiseCoord = ivec2(coord * vec2(viewWidth, viewHeight)) % noiseTextureResolution; // wrap to range of noiseTextureResolution
   return texelFetch(noisetex, noiseCoord, 0);
 }
 
@@ -52,14 +52,16 @@ vec3 projectAndDivide(mat4 projectionMatrix, vec3 position){
 
 #ifdef SCREEN_SPACE_SHADOWS
 
-    bool screenSpaceShadow(vec3 shadowViewPos, vec3 viewPos){
-        vec3 ray = shadowViewPos - viewPos;
-        vec3 rayStep = ray / 8.0;
-        for(int i = 0; i < 8; i++){
-            viewPos += rayStep;
-            vec3 ssPos = projectAndDivide(gbufferProjection, viewPos) * 0.5 + 0.5;
-            //float depth = ssPos.xy;
-            if(viewPos.z < ssPos.z) return true;
+    bool screenSpaceShadow(vec3 pixelViewPos, float depth){
+        vec3 raydir = normalize(shadowLightPosition - pixelViewPos) * 0.25;
+        vec3 rayStep = raydir / 64.0;
+        depth = linearizeDepth(depth);
+        for(int i = 0; i < 64.0; i++){
+            pixelViewPos += rayStep;
+            vec3 ssPos = projectAndDivide(gbufferProjection, pixelViewPos) * 0.5 + 0.5;
+            if(ssPos.x < 0.0 || ssPos.x > 1.0 || ssPos.y < 0.0 || ssPos.y > 1.0) return false;
+            float delta = linearizeDepth(ssPos.z) - linearizeDepth(texture(depthtex2, ssPos.xy).r) - (0.003 * depth);
+            if(delta > 0.0 && delta < 0.1) return true;
         }
         return false;
     }
@@ -68,14 +70,14 @@ vec3 projectAndDivide(mat4 projectionMatrix, vec3 position){
 
 #ifdef PENUMBRA_SHADOWS
 
-    float calculatePenumbra(sampler2D stex, vec4 shadowPos, vec4 noise){
+    float calculatePenumbra(sampler2D stex, vec3 shadowPos, vec4 noise){
         float blockerDepth = 0.0;
         float blockerCount = 0.0;
         mat2 rotation = getRotationMat2(noise.r);
         vec2 randOffset = (vec2(noise.g, noise.b) - 0.5) * 0.5; 
         vec2 penumPattern[13] = vec2[](vec2(0.0), vec2(1.0, 1.0), vec2(-1.0, -1.0), vec2(1.0, -1.0), vec2(-1.0, 1.0), vec2(0.25, 0.45), vec2(-0.25, -0.45), vec2(0.45, -0.25), vec2(-0.45, 0.25), vec2(-1.15, 0.0), vec2(1.15, 0.0), vec2(0.0, -1.15), vec2(0.0, 1.15));
         for(int i = 0; i < 13; i++){
-            vec2 samplePos = shadowPos.xy + ((penumPattern[i] + randOffset) * 20.0 * rotation / shadowMapResolution);
+            vec2 samplePos = shadowPos.xy + ((penumPattern[i] + randOffset) * 20.0 * rotation / 4096);
             float tex1 = texture(stex, samplePos).r;
             if(tex1 < shadowPos.z){
                 blockerDepth += tex1;
@@ -92,17 +94,7 @@ vec3 projectAndDivide(mat4 projectionMatrix, vec3 position){
 
 #if COLORED_SHADOWS == 0
 
-    float filteredShadow(vec4 shadowPos, float samplingSpacing, float lightBrightness){
-        vec3 ray = shadowViewPos - viewPos;
-        vec3 rayStep = ray / 8.0;
-        for(int i = 0; i < 8; i++){
-            viewPos += rayStep;
-            vec3 ssPos = projectAndDivide(gbufferProjection, viewPos) * 0.5 + 0.5;
-            float depth = texture(depthtex2, ssPos.xy).r;
-            if(depth < ssPos.z) return true;
-        }
-        return false;
-    }
+    float filteredShadow(vec3 shadowPos, float samplingSpacing, float lightBrightness){
         vec4 noise = getNoise(texcoord);
         float color = 0.0;
         vec2 pattern[SAMPLING_PATTERN_LENGTH] = SAMPLING_PATTERN;
@@ -113,7 +105,7 @@ vec3 projectAndDivide(mat4 projectionMatrix, vec3 position){
         #endif
         vec2 randOffset = (vec2(noise.g, noise.b) - 0.5) * 0.5; 
         for(int i = 0; i < SAMPLING_PATTERN_LENGTH; i++){
-            vec2 samplePos = shadowPos.xy + ((pattern[i] + randOffset) * rotation * samplingSpacing / shadowMapResolution);
+            vec2 samplePos = shadowPos.xy + ((pattern[i] + randOffset) * rotation * samplingSpacing / 4096);
             color += (texture(shadowtex0, samplePos.xy).r < shadowPos.z) ? SHADOW_BRIGHTNESS * lmcoord.y : lightBrightness;
         }
         return color / SAMPLING_PATTERN_LENGTH;
@@ -122,7 +114,7 @@ vec3 projectAndDivide(mat4 projectionMatrix, vec3 position){
     
 #elif COLORED_SHADOWS == 1
 
-        vec4 filteredShadow(vec4 shadowPos, float samplingSpacing, float intensitysky, float lightBrightness){
+        vec4 filteredShadow(vec3 shadowPos, float samplingSpacing, float intensitysky, float lightBrightness){
             vec4 color = vec4(0.0);
             vec2 pattern[SAMPLING_PATTERN_LENGTH] = SAMPLING_PATTERN;
             vec4 noise = getNoise(texcoord);
@@ -132,7 +124,7 @@ vec3 projectAndDivide(mat4 projectionMatrix, vec3 position){
             #endif
             vec2 randOffset = (vec2(noise.g, noise.b) - 0.5) * 0.5;
             for(int i = 0; i < SAMPLING_PATTERN_LENGTH; i++){
-                vec2 samplePos = shadowPos.xy + (pattern[i] + randOffset) * rotation * samplingSpacing / shadowMapResolution;
+                vec2 samplePos = shadowPos.xy + (pattern[i] + randOffset) * rotation * samplingSpacing / 4096;
                 float tex1 = texture(shadowtex1, samplePos).r;
                 if (tex1 < shadowPos.z) {  
                     color.rgb += vec3(1.0);
@@ -162,7 +154,7 @@ vec3 projectAndDivide(mat4 projectionMatrix, vec3 position){
 
 #else 
 
-    float filteredShadow(vec4 shadowPos, float samplingSpacing, float lightBrightness){
+    float filteredShadow(vec3 shadowPos, float samplingSpacing, float lightBrightness){
         vec4 noise = getNoise(texcoord);
         float color = 0.0;
         vec2 pattern[SAMPLING_PATTERN_LENGTH] = SAMPLING_PATTERN;
