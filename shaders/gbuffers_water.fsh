@@ -1,3 +1,4 @@
+#version 120
 
 uniform sampler2D texture;
 
@@ -13,11 +14,12 @@ layout(location = 1) out vec4 lightmapData;
 layout(location = 2) out vec4 encodedNormal;
 layout(location = 3) out vec4 mask;
 
+
 void main() {
-    vec4 precolor = texture(gtexture, texcoord) * glcolor;
+    vec4 precolor = texture(texture, texcoord) * glcolor;
     if (precolor.a < 0.1) discard;
     color = precolor;
     lightmapData = vec4(lmcoord, lightDot, 1.0);
     encodedNormal = vec4(normal * 0.5 + 0.5, 1.0);
-    mask = vec4(vec3(0.0), 1.0);
+    mask = vec4(1.0);
 }

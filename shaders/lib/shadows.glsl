@@ -1,5 +1,5 @@
-#define BLOCKLIGHT (vec3(0.73, 0.62, 0.46) * 3)
-#define SUNCOLOR (vec3(0.86, 0.52, 0.26) * 15)
+#define BLOCKLIGHT (vec3(0.66, 0.52, 0.41) * 3)
+#define SUNCOLOR (vec3(0.71, 0.48, 0.32) * 15)
 #define MOONCOLOR (vec3(0.64, 0.66, 0.85) * 4)
 
 #if SHADOW_FILTER_QUALITY == 0
@@ -32,11 +32,6 @@ float getLightIntensity(float x){
 	return 0.2 * sin(x * PI) + 1.0;
 }
 
-vec4 getNoise(vec2 coord){
-  ivec2 noiseCoord = ivec2(coord * vec2(viewWidth, viewHeight)) % noiseTextureResolution; // wrap to range of noiseTextureResolution
-  return texelFetch(noisetex, noiseCoord, 0);
-}
-
 mat2 getRotationMat2(float noise){
     float theta = noise * radians(360.0); // random angle using noise value
     float cosTheta = cos(theta);
@@ -51,26 +46,23 @@ vec3 projectAndDivide(mat4 projectionMatrix, vec3 position){
 }
 
 #ifdef SCREEN_SPACE_SHADOWS
-
-    bool screenSpaceShadow(vec3 pixelViewPos, float depth){
+    bool screenSpaceShadow(vec3 pixelViewPos, float depth, float lightDot){
+        depth = linearizeDepth(depth);
         vec3 raydir = normalize(shadowLightPosition - pixelViewPos) * 0.25;
         vec3 rayStep = raydir / 64.0;
-        depth = linearizeDepth(depth);
         for(int i = 0; i < 64.0; i++){
             pixelViewPos += rayStep;
             vec3 ssPos = projectAndDivide(gbufferProjection, pixelViewPos) * 0.5 + 0.5;
             if(ssPos.x < 0.0 || ssPos.x > 1.0 || ssPos.y < 0.0 || ssPos.y > 1.0) return false;
-            float delta = linearizeDepth(ssPos.z) - linearizeDepth(texture(depthtex2, ssPos.xy).r) - (0.003 * depth);
-            if(delta > 0.0 && delta < 0.1) return true;
+            float delta = linearizeDepth(ssPos.z) - linearizeDepth(texture(DTEX, ssPos.xy).r) - (0.005 * depth);
+            if(delta > 0.0 && delta < 0.08) return true;
         }
         return false;
     }
-
 #endif
 
 #ifdef PENUMBRA_SHADOWS
-
-    float calculatePenumbra(sampler2D stex, vec3 shadowPos, vec4 noise){
+    float calculatePenumbra(sampler2D stex, vec3 shadowPos){
         float blockerDepth = 0.0;
         float blockerCount = 0.0;
         mat2 rotation = getRotationMat2(noise.r);
@@ -89,13 +81,10 @@ vec3 projectAndDivide(mat4 projectionMatrix, vec3 position){
         if(blockerDepth <= 0.0) return 0.0;
         return clamp(((shadowPos.z - blockerDepth) * 20.0 / blockerDepth - distortFactor * 10.0), 0.0, 100.0);
     }
-
 #endif
 
 #if COLORED_SHADOWS == 0
-
     float filteredShadow(vec3 shadowPos, float samplingSpacing, float lightBrightness){
-        vec4 noise = getNoise(texcoord);
         float color = 0.0;
         vec2 pattern[SAMPLING_PATTERN_LENGTH] = SAMPLING_PATTERN;
         mat2 rotation = getRotationMat2(noise.r); // matrix to rotate the offset around the original position by the angle
@@ -110,17 +99,13 @@ vec3 projectAndDivide(mat4 projectionMatrix, vec3 position){
         }
         return color / SAMPLING_PATTERN_LENGTH;
     }
-
-    
 #elif COLORED_SHADOWS == 1
-
         vec4 filteredShadow(vec3 shadowPos, float samplingSpacing, float intensitysky, float lightBrightness){
             vec4 color = vec4(0.0);
             vec2 pattern[SAMPLING_PATTERN_LENGTH] = SAMPLING_PATTERN;
-            vec4 noise = getNoise(texcoord);
             mat2 rotation = getRotationMat2(noise.r); // matrix to rotate the offset around the original position by the angle
             #ifdef PENUMBRA_SHADOWS
-                samplingSpacing += calculatePenumbra(shadowtex1, shadowPos, noise);
+                samplingSpacing += calculatePenumbra(shadowtex0, shadowPos);
             #endif
             vec2 randOffset = (vec2(noise.g, noise.b) - 0.5) * 0.5;
             for(int i = 0; i < SAMPLING_PATTERN_LENGTH; i++){
@@ -148,12 +133,10 @@ vec3 projectAndDivide(mat4 projectionMatrix, vec3 position){
                     }
                 }
             }      
-
-        return color / SAMPLING_PATTERN_LENGTH;
+        
+        return color / SAMPLING_PATTERN_LENGTH;;
     }
-
 #else 
-
     float filteredShadow(vec3 shadowPos, float samplingSpacing, float lightBrightness){
         vec4 noise = getNoise(texcoord);
         float color = 0.0;
@@ -170,5 +153,4 @@ vec3 projectAndDivide(mat4 projectionMatrix, vec3 position){
         }
         return color / SAMPLING_PATTERN_LENGTH;
     }
-    
 #endif

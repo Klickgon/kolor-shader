@@ -1,3 +1,5 @@
+#version 120
+
 attribute vec4 mc_Entity;
 
 uniform mat4 gbufferModelView;
@@ -26,11 +28,8 @@ void main() {
 	lmcoord  = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
 	glcolor = gl_Color;
 
-	#if TEXTURED != 1
-		normal = gl_NormalMatrix * gl_Normal;
-	#else
-		normal = vec3(0.0, 0.0, 1.0);
-	#endif
+	normal = gl_NormalMatrix * gl_Normal;
+	
 	float isFoliage = float(mc_Entity.x == 10601.0 || mc_Entity.x == 12412.0);
 	lightDot = isFoliage + ((1-isFoliage) * dot(normalize(shadowLightPosition), normalize(normal)));
 
@@ -38,9 +37,6 @@ void main() {
 	vec3 playerPos = (gbufferModelViewInverse * vec4(viewPos, 1.0)).xyz;
 	vec3 worldPos = playerPos + cameraPosition;
 	if(mc_Entity.x == 10601.0 || mc_Entity.x == 2003.0){
-		viewPos = (gbufferModelView * vec4(applyWindEffect(worldPos) - cameraPosition, 1.0)).xyz;
-	}
-	if((mc_Entity.x == 12412.0) && mc_midTexCoord.y > texcoord.y){
 		viewPos = (gbufferModelView * vec4(applyWindEffect(worldPos) - cameraPosition, 1.0)).xyz;
 	}
 	
