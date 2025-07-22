@@ -11,7 +11,7 @@
 		//(exp(length(pos.xy) + SHADOW_DISTORT_FACTOR) - 1) / SHADOW_DISTORT_FACTOR
 		float numerator = length(pos.xy) + SHADOW_DISTORT_FACTOR;
 		distortFactor = numerator;
-		numerator = exp(numerator) - 1.0;
+		numerator = exp(numerator) + numerator * numerator - 1.0;
 		return SHADOW_BIAS / shadowMapResolution * numerator / SHADOW_DISTORT_FACTOR;
 	}
 #else
