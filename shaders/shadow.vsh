@@ -26,7 +26,6 @@ void main() {
 	texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
 	lmcoord  = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
 	glcolor = gl_Color;
-
 	#ifdef EXCLUDE_FOLIAGE
 		if (mc_Entity.x == 12412.0 || mc_Entity.x == 10601.0) {
 			gl_Position = vec4(10.0);
@@ -45,5 +44,4 @@ void main() {
 	#ifdef EXCLUDE_FOLIAGE
 		}
 	#endif
-	
 }

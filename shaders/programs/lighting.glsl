@@ -1,26 +1,46 @@
-
-
 #include "/settings.glsl"
 
+/*
+const int colortex4Format = RGB16;
+*/
 
 #define CTEX1 colortex0
 #define LTEX2 colortex1
-#define NEX3 colortex2
-#if TRANSLUCENT_PASS == 1
+#define NTEX3 colortex2
+#define ETEX4 colortex3
+#define NMTEX5 colortex4
+
+#if defined TRANSLUCENT_PASS
  	#define DTEX depthtex0
 #else
 	#define DTEX depthtex1
 #endif
 
+#if DRAW_SHADOW_MAP == 1
+	#define DRAWMAP shadowtex0
+#elif DRAW_SHADOW_MAP == 2
+	#define DRAWMAP shadowtex1
+#elif DRAW_SHADOW_MAP == 3
+	#define DRAWMAP shadowcolor0
+#elif DRAW_SHADOW_MAP == 4
+	#define DRAWMAP shadowcolor1
+#endif
+
+#ifdef NORMAL_MAPPING
+	#define NMAP normalMaps
+#else 
+	#define NMAP normal
+#endif
 
 uniform sampler2D CTEX1;
 uniform sampler2D LTEX2;
-uniform sampler2D NEX3;
-uniform sampler2D colortex3;
-
+uniform sampler2D NTEX3;
+uniform sampler2D ETEX4;
+uniform sampler2D NMTEX5;
 
 uniform sampler2D lightmap;
 uniform sampler2D shadowcolor0;
+uniform sampler2D shadowcolor1;
 uniform sampler2D shadowtex0;
 uniform sampler2D shadowtex1;
 uniform sampler2D texture;
@@ -39,6 +59,7 @@ uniform mat4 gbufferProjectionInverse;
 
 uniform vec3 skyColor;
 uniform float sunAngle;
+uniform float shadowAngle;
 uniform float fogStart;
 uniform float fogEnd;
 uniform vec3 fogColor;
@@ -58,11 +79,18 @@ varying vec2 texcoord;
 #include "/lib/common.glsl"
 
 vec2 lmcoord = sRGB_to_Linear(texture(LTEX2, texcoord).xyz).rg;
-vec3 normal = normalize((texture(NEX3, texcoord).rgb - 0.5) * 2.0); // we normalize to make sure it is of unit length
+vec3 normal = normalize((texture(NTEX3, texcoord).rgb - 0.5) * 2.0);
+#ifdef NORMAL_MAPPING
+	vec3 normalMaps = normalize((texture(NMTEX5, texcoord).rgb - 0.5) * 2.0);
+#endif
 float distortFactor = 0.0;
+float vertexLightDot = texture(LTEX2, texcoord).z * (1.0+(1.0/16.0));
+bool lightPassthrough = vertexLightDot > 1.0;
+float vanillaAO = texture(ETEX4, texcoord).g;
+
 
 vec4 getNoise(vec2 coord){
-  ivec2 noiseCoord = ivec2(coord * vec2(viewWidth, viewHeight)) % noiseTextureResolution; // wrap to range of noiseTextureResolution
+  ivec2 noiseCoord = ivec2(coord * vec2(viewWidth, viewHeight)) % noiseTextureResolution; 
   return texelFetch(noisetex, noiseCoord, 0);
 }
 
@@ -74,8 +102,8 @@ const float shadowRenderDis = (shadowDistance * shadowDistanceRenderMul);
 
 void main() {
 	vec4 color = texture2D(CTEX1, texcoord);
-    #if TRANSLUCENT_PASS == 1
-		if(texture(colortex3, texcoord).r < 0.1){
+    #if defined TRANSLUCENT_PASS
+		if(texture(ETEX4, texcoord).r < 0.5){ // mask
 			gl_FragData[0] = color;
 			return;
 		}
@@ -89,20 +117,20 @@ void main() {
 
 	vec2 lm = lmcoord;
 	color.rgb = sRGB_to_Linear(color.rgb);
-	float lightDot = texture(LTEX2, texcoord).z;
 	
 	vec3 NDCPos = screenPos * 2.0 - 1.0;
 	vec3 viewPos = projectAndDivide(gbufferProjectionInverse, NDCPos);
 	vec3 feetPlayerPos = (gbufferModelViewInverse * vec4(viewPos, 1.0)).xyz;
-	vec3 shadowViewPos = (shadowModelView * vec4(feetPlayerPos, 1.0)).xyz;
-	vec4 shadowClipPos = shadowProjection * vec4(shadowViewPos, 1.0);
 	
 	vec3 worldPos = feetPlayerPos + cameraPosition;
 
 	float intensity = getLightIntensity(sunAngle);
 	float intensitysky = (0.25 * intensity) + 0.5;
 	vec3 sky = mix(skyColor, vec3(0.02), intensity - 0.5);
-	float lightDotSqrt = sqrt(lightDot);
+	vertexLightDot = clamp(vertexLightDot, 0.0, 1.0);
+	
+	float lightDot = clamp(dot(normalize(shadowLightPosition), NMAP), 0.0, 1.0);
+	float lightDotSqrt = lightPassthrough ? 1.0 : sqrt(lightDot);
 	float light = mix(31.0 / 32.0 * SHADOW_BRIGHTNESS, 31.0 / 32.0, lightDotSqrt);
 
 	vec3 tint = vec3(1.0);
@@ -113,10 +141,10 @@ void main() {
 		lm.x = mix(lm.x, 1.0, hand * hand);
 	#endif
 
-	vec3 shadowPos;
+	vec3 shadowScreen;
 	#ifdef SCREEN_SPACE_SHADOWS
-		#if TRANSLUCENT_PASS != 1
-			bool sss = screenSpaceShadow(viewPos, screenPos.z, lightDot);
+		#if !defined TRANSLUCENT_PASS
+			bool sss = screenSpaceShadow(viewPos, screenPos.z, vertexLightDot);
 		#else
 			const bool sss = false;
 		#endif
@@ -124,45 +152,52 @@ void main() {
 		const bool sss = false;
 	#endif
 	float shadow;
-	bool surfaceFacingLight = lightDot > 0.0015;
-	if (surfaceFacingLight && (!sss || lightDot == 1.0)) { 
-		//surface is facing towards shadowLightPosition
-		float bias = computeBias(shadowClipPos.xyz);
-		shadowClipPos.xyz = distort(shadowClipPos.xyz); //apply shadow distortion
-		shadowPos.xyz = shadowClipPos.xyz * 0.5 + 0.5;
+	float viewPosLength = length(viewPos);
+	bool surfaceFacingLight = vertexLightDot > 0.0;
+	float shadowRange = clamp((viewPosLength - shadowRenderDis * (1-SHADOW_FADE_LENGTH)) / (shadowRenderDis - shadowRenderDis * (1-SHADOW_FADE_LENGTH)), 0.0, 1.0);
+
+	if (shadowRange < 1.0 && surfaceFacingLight && (lightPassthrough || !sss)) {
+		float shadowViewLength = length((shadowModelView * vec4(feetPlayerPos, 1.0)).xy);
+		vec3 shadowClipShadow = viewSpace_to_shadowClipSpace(viewPos + (normal * SHADOW_NORMAL_OFFSET * (1.0+shadowViewLength*0.15)));
+		float bias = computeBias(shadowClipShadow);
+
+		shadowClipShadow = distort(shadowClipShadow); //apply shadow distortion
+		shadowScreen = shadowClipShadow * 0.5 + 0.5;
 		
-		float lightLeak = min(0.5*(lmcoord.y - 0.15), 1.0);
-		#ifdef NORMAL_BIAS
-			shadowPos.xyz += normalize(projectAndDivide(shadowProjection, normal)) * bias / max(lightDot, 0.25) * lightLeak;
-		#else
-			shadowPos.z -= max(bias * (1.0 - lightDot), bias) * lightLeak;
-		#endif
-		//shadowPos.z += lightLeak; //light leak prevention
-			
+		shadowScreen.z -= max(bias * (1 - vertexLightDot), bias); // Usual Shadow bias for good measure
+
 		#if COLORED_SHADOWS == 1
-			vec4 coloredShadow = filteredShadow(shadowPos, SHADOW_FILTER_BLUR, intensitysky);
+			vec4 coloredShadow = filteredShadow(shadowScreen, SHADOW_FILTER_BLUR, intensitysky);
 			tint = coloredShadow.rgb;
 			shadow = coloredShadow.a;
 		#else 
-			shadow = filteredShadow(shadowPos, SHADOW_FILTER_BLUR);
+			shadow = filteredShadow(shadowScreen, SHADOW_FILTER_BLUR);
 		#endif
 	}
 	else { //surface is facing away
-		shadow = 0.0; //guaranteed to be in shadows. reduce light level.
+		shadow = 0.0; //guaranteed to be in shadows.
 	}
-	lm.y = mix(lmcoord.y * SHADOW_BRIGHTNESS, light, shadow * lightDotSqrt);
-	float viewPosLength = length(viewPos);
-	lm.y = mix(lm.y, mix(SHADOW_BRIGHTNESS * lmcoord.y, light, (clamp(lmcoord.y * 3.0 - 1.95, 0.0, 1.0) * lightDotSqrt) - float(!surfaceFacingLight)), clamp((viewPosLength - shadowRenderDis * (1-SHADOW_FADE_LENGTH)) / (shadowRenderDis - shadowRenderDis * (1-SHADOW_FADE_LENGTH)), 0.0, 1.0));
-	float range = (lm.y - SHADOW_BRIGHTNESS * lmcoord.y) / (light - SHADOW_BRIGHTNESS * lmcoord.y);
-	sky *= mix(vec3(lmcoord.y * clamp(dot(normalize(shadowLightPosition), normal), 0.5, 1.0)), getCelestialColor() * intensity * tint, max(range, 0.0));
+
+	shadow = mix(shadow * lightDotSqrt, (clamp(lmcoord.y * 5.0 - 3.5, 0.0, 1.0) * float(surfaceFacingLight)) * lightDotSqrt, shadowRange);
+
+	float lightFadeOut = clamp((shadowAngle > 0.25 ? abs(shadowAngle - 0.5) : abs(shadowAngle)) * 100.0, 0.0, 1.0);
+	lightFadeOut *= lightFadeOut;
+	shadow = mix(0.0, shadow, lightFadeOut);
+	lightDot = mix(0.0, lightDot, lightFadeOut);
+
+	lm.y = mix(lmcoord.y * SHADOW_BRIGHTNESS, light, shadow);
+
+	sky *= mix(vec3(lm.y * clamp(lightDot * 0.5 + 0.5, 0.5, 1.0)), getCelestialColor() * intensity * tint, shadow);
  	
-	lm.x /= (1+lm.y*lmcoord.y*2) * intensitysky;
+	lm.x /= max((1+lm.y*lmcoord.y*2) * intensitysky, 0.0001);
 	color.rgb *= intensitysky * sky + BLOCKLIGHT * lm.x;
 
-	float fogAmount = clamp((viewPosLength - fogStart * FOG_START_MULTIPLIER)/(fogEnd - fogStart * FOG_START_MULTIPLIER), 0.0, 1.0);
+	float fogAmount = clamp((viewPosLength - (far-10.0) * FOG_START_MULTIPLIER) / max(far - (far-10.0) * FOG_START_MULTIPLIER, 0.001), 0.0, 1.0);
 	color.rgb = mix(color.rgb, sRGB_to_Linear(fogColor), fogAmount * fogAmount);
 	color.rgb = Linear_to_sRGB(color.rgb);
-	//color.rgb = vec3(lightDot);
+	#if DRAW_SHADOW_MAP != 0
+		color = texture(DRAWMAP, texcoord);
+	#endif
 	/* DRAWBUFFERS:0 */
-	gl_FragData[0] = color; //gcolor
+	gl_FragData[0] = color; 
 }

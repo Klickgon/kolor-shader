@@ -40,7 +40,7 @@ vec3 projectAndDivide(mat4 projectionMatrix, vec3 position){
   return homPos.xyz / homPos.w;
 }
 
-#ifdef SCREEN_SPACE_SHADOWS && TRANSLUCENT_PASS != 1
+#if defined SCREEN_SPACE_SHADOWS && !defined TRANSLUCENT_PASS
     bool screenSpaceShadow(vec3 pixelViewPos, float depth, float lightDot){
         float surfaceDot = 1.5 - (dot(vec3(0.0, 0.0, 1.0), normal) * 0.5);
         if(surfaceDot < 0.1) return false;
@@ -85,7 +85,7 @@ vec3 projectAndDivide(mat4 projectionMatrix, vec3 position){
         if(blockerCount <= 0.0) return 0.0;
         blockerDepth /= blockerCount;
         if(blockerDepth <= 0.0) return 0.0;
-        return clamp(((shadowPos.z - blockerDepth) * 20.0 / blockerDepth - distortFactor * 10.0), 0.0, 100.0);
+        return clamp(((shadowPos.z - blockerDepth) * 20.0 / blockerDepth - distortFactor * 10.0 * lmcoord.y), 0.0, 100.0);
     }
 #endif
 

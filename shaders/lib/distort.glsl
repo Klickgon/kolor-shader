@@ -8,10 +8,9 @@
 	//then we need more bias. therefore, we need to know how much
 	//bigger or smaller a pixel gets as a result of applying distortion.
 	float computeBias(vec3 pos) {
-		//(exp(length(pos.xy) + SHADOW_DISTORT_FACTOR) - 1) / SHADOW_DISTORT_FACTOR
 		float numerator = length(pos.xy) + SHADOW_DISTORT_FACTOR;
 		distortFactor = numerator;
-		numerator = exp(numerator) + numerator * numerator - 1.0;
+		numerator = exp(numerator) - 1.0;
 		return SHADOW_BIAS / shadowMapResolution * numerator / SHADOW_DISTORT_FACTOR;
 	}
 #else

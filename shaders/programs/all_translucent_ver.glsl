@@ -1,4 +1,10 @@
+#include "/settings.glsl"
+
 attribute vec4 mc_Entity;
+#ifdef NORMAL_MAPPING
+	attribute vec4 at_tangent;	
+#endif
+
 
 uniform mat4 gbufferModelView;
 uniform mat4 gbufferModelViewInverse;
@@ -15,35 +21,43 @@ varying vec2 lmcoord;
 varying vec2 texcoord;
 varying vec4 glcolor;
 varying vec3 normal;
-varying float lightDot;
 
+#ifdef NORMAL_MAPPING
+    varying vec3 tangent;
+    varying vec3 bitangent;
+#endif
 
-#include "/settings.glsl"
+varying float vertexLightDot;
+varying float viewPosLength;
+varying float vanillaAO;
+
 #include "/lib/vertex_manipulation.glsl"
 
 void main() {
 	texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
 	lmcoord  = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
 	glcolor = gl_Color;
-	#if TEXTURED == 1
+	vanillaAO = glcolor.a;
+	glcolor.xyz *= glcolor.a;
+	#if defined TEXTURED
 		normal = vec3(0.0, 0.0, 1.0);
 	#else
 		normal = gl_NormalMatrix * gl_Normal;
 	#endif
 
-	#if WEATHER == 1
-		lightDot = 1.0;
+	#if defined WEATHER
+		const bool lightPassthrough = true;
 	#else
-		float isFoliage = float(mc_Entity.x == 10601.0 || mc_Entity.x == 12412.0);
-		lightDot = isFoliage + ((1-isFoliage) * dot(normalize(shadowLightPosition), normalize(normal))- 1.0/256.0);
+		bool lightPassthrough = mc_Entity.x == 10601.0 || mc_Entity.x == 12412.0;
 	#endif
-	
+
+	vertexLightDot = lightPassthrough ? 1.0 : dot(normal, normalize(shadowLightPosition)) * (1.0-(1.0/16.0));
+	#ifdef NORMAL_MAPPING
+		tangent = gl_NormalMatrix * at_tangent.xyz;
+		bitangent = cross(tangent, normal) * at_tangent.w;
+	#endif
 	vec3 viewPos = (gl_ModelViewMatrix * gl_Vertex).xyz;
-	/*vec3 playerPos = (gbufferModelViewInverse * vec4(viewPos, 1.0)).xyz;
-	vec3 worldPos = playerPos + cameraPosition;
-	if(mc_Entity.x == 10601.0 || mc_Entity.x == 2003.0){
-		viewPos = (gbufferModelView * vec4(applyWindEffect(worldPos) - cameraPosition, 1.0)).xyz;
-	}*/
+	viewPosLength = length(viewPos);
 	
 	gl_Position = gl_ProjectionMatrix * vec4(viewPos, 1.0);
 }
