@@ -23,22 +23,7 @@
 
 
 
-float getLightIntensity(float x){
-	return 0.10 * sin(x * PI) + 1.0;
-}
 
-mat2 getRotationMat2(float noise){
-    float theta = noise * radians(360.0); // random angle using noise value
-    float cosTheta = cos(theta);
-    float sinTheta = sin(theta);
-
-    return mat2(cosTheta, -sinTheta, sinTheta, cosTheta); 
-}
-
-vec3 projectAndDivide(mat4 projectionMatrix, vec3 position){
-  vec4 homPos = projectionMatrix * vec4(position, 1.0);
-  return homPos.xyz / homPos.w;
-}
 
 #if defined SCREEN_SPACE_SHADOWS && !defined TRANSLUCENT_PASS
     bool screenSpaceShadow(vec3 pixelViewPos, float depth, float lightDot){
@@ -75,7 +60,7 @@ vec3 projectAndDivide(mat4 projectionMatrix, vec3 position){
 
         vec2 penumPattern[13] = vec2[](vec2(0.0), vec2(1.0223, 1.0341), vec2(-1.045, -1.012), vec2(1.0123, -1.0312), vec2(-1.053, 1.0512), vec2(0.25412, 0.45124), vec2(-0.25126, -0.45521), vec2(0.45521, -0.255212), vec2(-0.45521, 0.255521), vec2(-1.26132, 0.0621), vec2(1.2412, 0.0421), vec2(0.0642, -1.2521), vec2(0.0212, 1.24421));
         for(int i = 0; i < 13; i++){
-            vec2 samplePos = shadowPos.xy + ((penumPattern[i] + randOffset) * 20.0 * rotation / 4096);
+            vec2 samplePos = shadowPos.xy + ((penumPattern[i] + randOffset) * 20.0 * rotation / 4096.0);
             float tex1 = texture(stex, samplePos).r;
             if(tex1 < shadowPos.z){
                 blockerDepth += tex1;
@@ -104,7 +89,7 @@ vec3 projectAndDivide(mat4 projectionMatrix, vec3 position){
             vec2 randOffset = (vec2(noise.g, noise.b) - 0.5) * 0.5;
         #endif
         for(int i = 0; i < SAMPLING_PATTERN_LENGTH; i++){
-            vec2 samplePos = shadowPos.xy + ((pattern[i] + randOffset) * rotation * samplingSpacing / 4096);
+            vec2 samplePos = shadowPos.xy + ((pattern[i] + randOffset) * rotation * samplingSpacing / 4096.0);
             color += float(texture(shadowtex0, samplePos.xy).r >= shadowPos.z);
         }
         return color / SAMPLING_PATTERN_LENGTH;
@@ -125,7 +110,7 @@ vec3 projectAndDivide(mat4 projectionMatrix, vec3 position){
             int lightMix = 0;
             float tintsamples = 0.0;
             for(int i = 0; i < SAMPLING_PATTERN_LENGTH; i++){
-                vec2 samplePos = shadowPos.xy + (pattern[i] + randOffset) * rotation * samplingSpacing / 4096;
+                vec2 samplePos = shadowPos.xy + (pattern[i] + randOffset) * rotation * samplingSpacing / 4096.0;
                 float tex1 = texture(shadowtex1, samplePos).r;
                 if (tex1 >= shadowPos.z) {
                     float tex0 = texture(shadowtex0, samplePos).r;
@@ -134,13 +119,11 @@ vec3 projectAndDivide(mat4 projectionMatrix, vec3 position){
                         //if the block light is high, modify the color less.
                         vec4 shadowLightColor = texture2D(shadowcolor0, samplePos.xy);
                         //make colors more intense when the shadow light color is more opaque.
-                        shadowLightColor.rgb = mix(vec3(1.0), shadowLightColor.rgb, shadowLightColor.a);
-                        //also make colors less intense when the block light level is high.
-                        //shadowLightColor.rgb = mix(shadowLightColor.rgb, vec3(1.0), lmcoord.x);
+                        shadowLightColor.rgb = mix(vec3(1.0), sRGB_to_Linear(shadowLightColor.rgb), shadowLightColor.a);
                         //apply the color
-                        color.rgb += shadowLightColor.rgb * intensitysky * lmcoord.y;
+                        color.rgb += shadowLightColor.rgb * intensitysky;
                         tintsamples += 1.0;
-                        color.a += 1.0;
+                        color.a += lmcoord.y;
                     } else {
                         color.rgb += vec3(1.0);
                         tintsamples += 1.0;

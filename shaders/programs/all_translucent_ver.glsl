@@ -28,6 +28,7 @@ varying vec3 normal;
 #endif
 
 varying float vertexLightDot;
+varying vec3 viewPos;
 varying float viewPosLength;
 varying float vanillaAO;
 
@@ -56,7 +57,8 @@ void main() {
 		tangent = gl_NormalMatrix * at_tangent.xyz;
 		bitangent = cross(tangent, normal) * at_tangent.w;
 	#endif
-	vec3 viewPos = (gl_ModelViewMatrix * gl_Vertex).xyz;
+	
+	viewPos = (gl_ModelViewMatrix * gl_Vertex).xyz;
 	viewPosLength = length(viewPos);
 	
 	gl_Position = gl_ProjectionMatrix * vec4(viewPos, 1.0);
