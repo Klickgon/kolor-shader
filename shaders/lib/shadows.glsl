@@ -1,40 +1,29 @@
-
-
 #if SHADOW_FILTER_QUALITY == 0
     #define SAMPLING_PATTERN vec2[](vec2(0.0))
     #define SAMPLING_PATTERN_LENGTH 1
-#endif
-#if SHADOW_FILTER_QUALITY == 1
+#elif SHADOW_FILTER_QUALITY == 1
     #define SAMPLING_PATTERN vec2[](vec2(0.0), vec2(1.0223, 1.0341), vec2(-1.045, -1.012), vec2(1.0123, -1.0312), vec2(-1.053, 1.0512))
     #define SAMPLING_PATTERN_LENGTH 5
-#endif
-#if SHADOW_FILTER_QUALITY == 2
+#elif SHADOW_FILTER_QUALITY == 2
     #define SAMPLING_PATTERN vec2[](vec2(0.0), vec2(1.0223, 1.0341), vec2(-1.045, -1.012), vec2(1.0123, -1.0312), vec2(-1.053, 1.0512), vec2(0.25412, 0.45124), vec2(-0.25126, -0.45521), vec2(0.45521, -0.255212), vec2(-0.45521, 0.255521))
     #define SAMPLING_PATTERN_LENGTH 9
-#endif
-#if SHADOW_FILTER_QUALITY == 3
+#elif SHADOW_FILTER_QUALITY == 3
     #define SAMPLING_PATTERN vec2[](vec2(0.0), vec2(1.0223, 1.0341), vec2(-1.045, -1.012), vec2(1.0123, -1.0312), vec2(-1.053, 1.0512), vec2(0.25412, 0.45124), vec2(-0.25126, -0.45521), vec2(0.45521, -0.255212), vec2(-0.45521, 0.255521), vec2(-1.26132, 0.0621), vec2(1.2412, 0.0421), vec2(0.0642, -1.2521), vec2(0.0212, 1.24421))
     #define SAMPLING_PATTERN_LENGTH 13
-#endif
-#if SHADOW_FILTER_QUALITY == 4
+#elif SHADOW_FILTER_QUALITY == 4
     #define SAMPLING_PATTERN vec2[](vec2(0.0), vec2(1.0223, 1.0341), vec2(-1.045, -1.012), vec2(1.0123, -1.0312), vec2(-1.053, 1.0512), vec2(0.25412, 0.45124), vec2(-0.25126, -0.45521), vec2(0.45521, -0.255212), vec2(-0.45521, 0.255521), vec2(-1.26132, 0.0621), vec2(1.2412, 0.0421), vec2(0.0642, -1.2521), vec2(0.0212, 1.24421), vec2(-0.45531, 0.8512), vec2(0.45332, -0.851562), vec2(-0.85423, -0.45422), vec2(0.85422, 0.45422))
     #define SAMPLING_PATTERN_LENGTH 17
 #endif
 
-
-
-
-
 #if defined SCREEN_SPACE_SHADOWS && !defined TRANSLUCENT_PASS
-    bool screenSpaceShadow(vec3 pixelViewPos, float depth, float lightDot){
-        float surfaceDot = 1.5 - (dot(vec3(0.0, 0.0, 1.0), normal) * 0.5);
-        if(surfaceDot < 0.1) return false;
+    bool screenSpaceShadow(vec3 pixelViewPos, float depth, float lightDot, float surfaceDot){
+        if(surfaceDot > 0.8) return false;
         depth = linearizeDepth(depth);
-        float bias = ((1-lightDot) * surfaceDot * depth * 0.0075);
-
-        vec3 raydir = normalize(shadowLightPosition - pixelViewPos) * 0.25;
+        float bias = (1-lightDot) * (1+surfaceDot * 0.1) * depth * 0.0075;
+        vec3 raydir = shadowLightPosition * 0.0025;
         vec3 rayStep = raydir / 32.0;
         float offset = noise.b * 0.25 + 1.0;
+        pixelViewPos += rayStep;
         for(int i = 0; i < 32.0; i++){
             pixelViewPos += rayStep * offset;
             vec3 ssPos = projectAndDivide(gbufferProjection, pixelViewPos) * 0.5 + 0.5;
@@ -44,6 +33,28 @@
         }
         return false;
     }
+
+    #if defined DISTANT_HORIZONS
+        bool screenSpaceShadowDH(vec3 pixelViewPos, float depth, float lightDot, float viewPosLength){
+            if(lightDot <= 0.0) return false;
+            float surfaceDot = 1.5 - (dot(vec3(0.0, 0.0, 1.0), normal) * 0.5);
+            if(surfaceDot < 0.1) return false;
+            depth = linearizeDepthDH(depth);
+            float bias = ((1-lightDot) * surfaceDot * depth * 0.00095);
+
+            vec3 raydir = shadowLightPosition * 0.025;
+            vec3 rayStep = raydir / 32.0;
+            float offset = noise.b * 0.20 + 1.0;
+            for(int i = 0; i < 32.0; i++){
+                pixelViewPos += rayStep * offset;
+                vec3 ssPos = projectAndDivide(dhPreviousProjection, pixelViewPos) * 0.5 + 0.5;
+                if(ssPos.x < 0.0 || ssPos.x > 1.0 || ssPos.y < 0.0 || ssPos.y > 1.0) return false;
+                float delta = linearizeDepthDH(ssPos.z) - linearizeDepthDH(texture(dhDepthTex1, ssPos.xy).r) - bias;
+                if(delta > 0.0 && delta < 10.0) return true;
+            }
+            return false;
+        }
+    #endif
 #endif
 
 #ifdef PENUMBRA_SHADOWS
@@ -63,14 +74,14 @@
             vec2 samplePos = shadowPos.xy + ((penumPattern[i] + randOffset) * 20.0 * rotation / 4096.0);
             float tex1 = texture(stex, samplePos).r;
             if(tex1 < shadowPos.z){
-                blockerDepth += tex1;
+                blockerDepth += linearizeDepth(tex1);
                 blockerCount += 1.0;
             }
         }
         if(blockerCount <= 0.0) return 0.0;
         blockerDepth /= blockerCount;
         if(blockerDepth <= 0.0) return 0.0;
-        return clamp(((shadowPos.z - blockerDepth) * 20.0 / blockerDepth - distortFactor * 10.0 * lmcoord.y), 0.0, 100.0);
+        return clamp(((linearizeDepth(shadowPos.z) - blockerDepth) * 35.0 / blockerDepth - distortFactor * 10.0 * lmcoord.y), 0.0, 60.0);
     }
 #endif
 

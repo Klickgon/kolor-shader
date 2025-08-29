@@ -5,9 +5,9 @@
 #define SUNCOLOR_NOON (vec3(0.71, 0.52, 0.35) * 9)
 #define SUNCOLOR_EVENING (vec3(0.89, 0.30, 0.05) * 25)
 
-#define MOONCOLOR_EARLY (vec3(0.64, 0.66, 0.85))
-#define MOONCOLOR_MIDNIGHT (vec3(0.51, 0.54, 0.85) * 19)
-#define MOONCOLOR_LATE (vec3(0.64, 0.66, 0.85) * 3)
+#define MOONCOLOR_EARLY (vec3(0.64, 0.66, 0.71))
+#define MOONCOLOR_MIDNIGHT (vec3(0.51, 0.54, 0.62) * 19)
+#define MOONCOLOR_LATE (vec3(0.64, 0.66, 0.71) * 3)
 
 float getLightIntensity(float x){
 	return 0.10 * sin(x * PI) + 1.0;
@@ -44,10 +44,20 @@ vec3 getCelestialColor(){
 	return color;
 }
 
+float RGBluminance(vec3 color){
+ return (0.299*color.r + 0.587*color.g + 0.114*color.b);
+}
+
 float linearizeDepth(float depth) {
 	float farPlane = far * 4.0;
     return (near * farPlane) / (depth * (near - farPlane) + farPlane);
 }
+
+#if defined DISTANT_HORIZONS
+	float linearizeDepthDH(float depth) {
+		return (dhNearPlane * dhFarPlane) / (depth * (dhNearPlane - dhFarPlane) + dhFarPlane);
+	}
+#endif
 
 vec3 sRGB_to_Linear(vec3 color){
 	return pow(color, vec3(2.2));
@@ -77,3 +87,5 @@ vec3 viewSpace_to_shadowClipSpace(vec3 viewPos){
 	vec3 shadowClipPos = (shadowProjection * vec4(shadowViewPos, 1.0)).xyz;
 	return shadowClipPos;
 }
+
+

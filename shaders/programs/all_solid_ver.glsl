@@ -38,7 +38,6 @@ void main() {
 	lmcoord  = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
 	glcolor = gl_Color;
 	vanillaAO = glcolor.a;
-	glcolor.xyz *= glcolor.a;
 
 	#if defined TEXTURED
 		normal = vec3(0.0, 0.0, 1.0);

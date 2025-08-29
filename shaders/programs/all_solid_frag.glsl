@@ -6,6 +6,7 @@
 
 uniform sampler2D texture;
 uniform sampler2D depthtex0;
+uniform sampler2D noisetex;
 
 uniform float viewWidth;
 uniform float viewHeight;
@@ -15,7 +16,7 @@ uniform float far;
     #ifdef NORMAL_MAPPING
         uniform sampler2D normals;
     #endif
-    #ifdef SPECULAR_MAPPING
+    #if SPECULAR_MAPPING == 2
         uniform sampler2D specular;
     #endif
 #endif
@@ -34,6 +35,11 @@ varying float vertexLightDot;
 varying float viewPosLength;
 varying float vanillaAO;
 
+vec4 getNoise(vec2 coord){
+  ivec2 noiseCoord = ivec2(coord) % noiseTextureResolution; 
+  return texelFetch(noisetex, noiseCoord, 0);
+}
+
 /* RENDERTARGETS: 0,1,2,3,4,5 */
 layout(location = 0) out vec4 color;
 layout(location = 1) out vec4 lightmapData;
@@ -45,16 +51,15 @@ layout(location = 5) out vec4 specularMap;
 void main() {
     #ifdef DISTANT_HORIZONS
         #if defined DH
-            if(texture(depthtex0, gl_FragCoord.xy / vec2(viewWidth, viewHeight)).r != 1.0) discard;
+            if(viewPosLength < far * 0.80) discard;
+            vec2 fragCoord = gl_FragCoord.xy / vec2(viewWidth, viewHeight);
+            if(texture(depthtex0, fragCoord).r < 1.0) discard;
+        #else
+            if(max((viewPosLength - far * 0.95) * 0.05, 0.0) > getNoise(gl_FragCoord.xy).r) discard;
         #endif
-        #if !defined DH
-            if(viewPosLength >= far) discard;
-            if(viewPosLength < far && viewPosLength >= far * 0.98 && !(int(gl_FragCoord.x / 2.0) % 2 != int(gl_FragCoord.y / 2.0) % 2)) discard;
-        #endif
-   #endif
+    #endif
     
-
-    vec4 precolor = texture(gtexture, texcoord) * glcolor;
+    vec4 precolor = texture(gtexture, texcoord);
     if (precolor.a < 0.1) discard;
 
     #if defined NORMAL_MAPPING && !defined(DH)
@@ -62,20 +67,26 @@ void main() {
         mat3 tbn = mat3(tangent, bitangent, normal);
         normalMaps = texture(normals, texcoord).rgb;
         normalMaps.z = sqrt(1.0 - dot(normalMaps.xy, normalMaps.xy));
-        normalMaps = mix(vec3(0.5, 0.5, 1.0), normalMaps, NORMAL_MAP_STRENGTH * (1-clamp(viewPosLength * 0.01 - float(precolor.a > 0.7), 0.0, 1.0)));
+        normalMaps = mix(vec3(0.5, 0.5, 1.0), normalMaps, NORMAL_MAP_STRENGTH);
         normalMaps = normalMaps * 2.0 - 1.0;   
         normalMaps = normalize(tbn * normalMaps);
     #endif
     color = precolor;
+    color.rgb = pow(pow(color.rgb, vec3(2.2)) * pow(glcolor.rgb, vec3(2.2)), vec3(1.0/2.2));
+
     lightmapData = vec4(lmcoord, vertexLightDot, 1.0);
     encodedNormal = vec4(normal * 0.5 + 0.5, 1.0);
     #if !defined DH
         #ifdef NORMAL_MAPPING
             encodedNormalMap = vec4(normalMaps * 0.5 + 0.5, 1.0);
+        #endif 
+        #if SPECULAR_MAPPING == 2
+            specularMap = vec4(texture(specular, texcoord).rgb, 1.0);
+        #elif SPECULAR_MAPPING == 1
+            specularMap = vec4(0.15, 0.01, 0.05, 1.0);
         #endif
-        #ifdef SPECULAR_MAPPING
-            specularMap = texture(specular, texcoord);
-        #endif
+    #elif SPECULAR_MAPPING != 0
+        specularMap = vec4(0.15, 0.01, 0.05, 1.0);
     #endif
     extraInfo = vec4(MASK, vanillaAO, 0.0, 1.0);
 }

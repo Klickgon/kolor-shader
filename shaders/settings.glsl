@@ -16,10 +16,11 @@
 #define FOG_START_MULTIPLIER 0.6 //[0.2 0.4 0.6 0.8 1.0]
 #define NORMAL_MAPPING
 #define NORMAL_MAP_STRENGTH 0.5 // [0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0]
-#define DISABLE_DH_TRANSPARENCY
-#define SPECULAR_MAPPING
+#define SPECULAR_MAPPING 1 //[0 1 2]
+#define SPECULAR_LIGHT_QUALITY 2 //[1 2]
 
-//fix artifacts when colored shadows are enabled
+const float ambientOcclusionLevel = 1.0;
+
 const bool shadowcolor0Nearest = true;
 const bool shadowtex0Nearest = true;
 const bool shadowtex1Nearest = true;
