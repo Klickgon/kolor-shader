@@ -11,8 +11,10 @@ uniform sampler2D noisetex;
 uniform float viewWidth;
 uniform float viewHeight;
 uniform float far;
+uniform int entityId;
 
 #if !defined DH
+    
     #ifdef NORMAL_MAPPING
         uniform sampler2D normals;
     #endif
@@ -31,6 +33,7 @@ varying vec3 normal;
     varying vec3 bitangent;
 #endif
 
+
 varying float vertexLightDot;
 varying float viewPosLength;
 varying float vanillaAO;
@@ -41,7 +44,6 @@ vec4 getNoise(vec2 coord){
 }
 
 /* RENDERTARGETS: 0,1,2,3,4,5 */
-layout(location = 0) out vec4 color;
 layout(location = 1) out vec4 lightmapData;
 layout(location = 2) out vec4 encodedNormal;
 layout(location = 3) out vec4 encodedNormalMap;
@@ -55,7 +57,7 @@ void main() {
             vec2 fragCoord = gl_FragCoord.xy / vec2(viewWidth, viewHeight);
             if(texture(depthtex0, fragCoord).r < 1.0) discard;
         #else
-            if(max((viewPosLength - far * 0.95) * 0.05, 0.0) > getNoise(gl_FragCoord.xy).r) discard;
+            if(max((viewPosLength - far * 0.95) * 0.2, 0.0) > getNoise(gl_FragCoord.xy).r) discard;
         #endif
     #endif
     
@@ -71,8 +73,9 @@ void main() {
         normalMaps = normalMaps * 2.0 - 1.0;   
         normalMaps = normalize(tbn * normalMaps);
     #endif
-    color = precolor;
-    color.rgb = pow(pow(color.rgb, vec3(2.2)) * pow(glcolor.rgb, vec3(2.2)), vec3(1.0/2.2));
+    
+    precolor.rgb = pow(pow(precolor.rgb, vec3(2.2)) * pow(glcolor.rgb, vec3(2.2)), vec3(1.0/2.2));
+    gl_FragData[0] = precolor;
 
     lightmapData = vec4(lmcoord, vertexLightDot, 1.0);
     encodedNormal = vec4(normal * 0.5 + 0.5, 1.0);
@@ -83,10 +86,10 @@ void main() {
         #if SPECULAR_MAPPING == 2
             specularMap = vec4(texture(specular, texcoord).rgb, 1.0);
         #elif SPECULAR_MAPPING == 1
-            specularMap = vec4(0.15, 0.01, 0.05, 1.0);
+            specularMap = vec4(0.15, 0.0, 0.2, 1.0);
         #endif
     #elif SPECULAR_MAPPING != 0
-        specularMap = vec4(0.15, 0.01, 0.05, 1.0);
+        specularMap = vec4(0.15, 0.0, 0.2, 1.0);
     #endif
     extraInfo = vec4(MASK, vanillaAO, 0.0, 1.0);
 }

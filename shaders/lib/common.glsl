@@ -1,8 +1,8 @@
 #define PI 3.1415926535897932384626433832795
-#define BLOCKLIGHT (vec3(0.66, 0.43, 0.27) * 3.0)
+#define BLOCKLIGHT (vec3(0.66, 0.34, 0.15) * 3.0)
 
 #define SUNCOLOR_MORNING (vec3(0.71, 0.42, 0.22) * 13)
-#define SUNCOLOR_NOON (vec3(0.71, 0.52, 0.35) * 9)
+#define SUNCOLOR_NOON (vec3(0.71, 0.49, 0.29) * 9)
 #define SUNCOLOR_EVENING (vec3(0.89, 0.30, 0.05) * 25)
 
 #define MOONCOLOR_EARLY (vec3(0.64, 0.66, 0.71))
@@ -46,6 +46,10 @@ vec3 getCelestialColor(){
 
 float RGBluminance(vec3 color){
  return (0.299*color.r + 0.587*color.g + 0.114*color.b);
+}
+
+float fixHandDepth(float screenDepth) {
+	return ((screenDepth * 2.0 - 1.0) / MC_HAND_DEPTH) * 0.5 + 0.5;
 }
 
 float linearizeDepth(float depth) {

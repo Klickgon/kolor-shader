@@ -12,7 +12,6 @@ uniform mat4 shadowModelView;
 uniform mat4 shadowProjection;
 uniform vec3 shadowLightPosition;
 uniform vec3 cameraPosition;
-uniform int blockEntityId;
 uniform float frameTimeCounter;
 
 varying vec2 mc_midTexCoord;
@@ -36,6 +35,8 @@ varying float vanillaAO;
 void main() {
 	texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
 	lmcoord  = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
+	lmcoord = lmcoord / (30.0 / 32.0) - (1.0 / 32.0);
+	
 	glcolor = gl_Color;
 	vanillaAO = glcolor.a;
 

@@ -21,14 +21,13 @@
         depth = linearizeDepth(depth);
         float bias = (1-lightDot) * (1+surfaceDot * 0.1) * depth * 0.0075;
         vec3 raydir = shadowLightPosition * 0.0025;
-        vec3 rayStep = raydir / 32.0;
         float offset = noise.b * 0.25 + 1.0;
-        pixelViewPos += rayStep;
+        vec3 rayStep = raydir / 32.0 * offset;
         for(int i = 0; i < 32.0; i++){
-            pixelViewPos += rayStep * offset;
+            pixelViewPos += rayStep;
             vec3 ssPos = projectAndDivide(gbufferProjection, pixelViewPos) * 0.5 + 0.5;
             if(ssPos.x < 0.0 || ssPos.x > 1.0 || ssPos.y < 0.0 || ssPos.y > 1.0) return false;
-            float delta = linearizeDepth(ssPos.z) - linearizeDepth(texture(depthtex2, ssPos.xy).r) - bias;
+            float delta = linearizeDepth(ssPos.z) - linearizeDepth(texture(depthtex0, ssPos.xy).r) - bias;
             if(delta > 0.0 && delta < 0.08) return true;
         }
         return false;
@@ -50,7 +49,7 @@
                 vec3 ssPos = projectAndDivide(dhPreviousProjection, pixelViewPos) * 0.5 + 0.5;
                 if(ssPos.x < 0.0 || ssPos.x > 1.0 || ssPos.y < 0.0 || ssPos.y > 1.0) return false;
                 float delta = linearizeDepthDH(ssPos.z) - linearizeDepthDH(texture(dhDepthTex1, ssPos.xy).r) - bias;
-                if(delta > 0.0 && delta < 10.0) return true;
+                if(delta > 6.0 && delta < 25.0) return true;
             }
             return false;
         }

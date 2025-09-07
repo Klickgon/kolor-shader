@@ -61,15 +61,15 @@ void main() {
             vec2 fragCoord = gl_FragCoord.xy / vec2(viewWidth, viewHeight);
             if(texture(depthtex0, fragCoord).r < 1.0) discard;
         #else
-            if(max((viewPosLength - far * 0.95) * 0.05, 0.0) > grayScale(getNoise(gl_FragCoord.xy).rgb)) discard;
+            if(max((viewPosLength - far * 0.95) * 0.2, 0.0) > grayScale(getNoise(gl_FragCoord.xy).rgb)) discard;
         #endif
     #endif
 
     vec4 precolor = texture(texture, texcoord);
     if (precolor.a < 0.1) discard;
-
-    #if defined WEATHER && !defined DH
-        precolor.a = 1.0;
+    
+    #if defined DH
+        precolor.a = 0.9;
     #endif
 
     #if defined NORMAL_MAPPING && !defined(DH)

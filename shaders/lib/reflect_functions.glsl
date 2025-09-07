@@ -1,3 +1,12 @@
+float fogify(float x, float w) {
+	return w / (x * x + w);
+}
+
+vec3 calcSkyColor(vec3 pos) {
+	float upDot = dot(pos, gbufferModelView[1].xyz);
+	return mix(skyColor, fogColor, fogify(max(upDot, 0.0), 0.25));
+}
+
 float getSpecularHighlight(vec3 viewPos, float lightDot, float roughness){
     vec3 reflectionDirection = reflect(-normalizedShadowLightPos, NMAP);
     roughness *= 0.5;
@@ -46,11 +55,32 @@ vec3 brdf(vec3 lightDir, vec3 viewDir, float roughness, vec3 normal, vec3 albedo
     return BRDF;
 }
 
-float fogify(float x, float w) {
-	return w / (x * x + w);
-}
+#define MAX_SSR_STEPS 200
 
-vec3 calcSkyColor(vec3 pos) {
-	float upDot = dot(pos, gbufferModelView[1].xyz);
-	return mix(skyColor, fogColor, fogify(max(upDot, 0.0), 0.25));
+vec3 screenSpaceReflections(vec3 color, vec3 pixelViewPos, vec3 reflectionDirection, float roughness){
+    vec2 screenResolution = vec2(viewWidth, viewHeight);
+    vec2 pixelStart = (projectAndDivide(gbufferProjection, pixelViewPos) * 0.5 + 0.5).xy * screenResolution;
+    vec3 rayDirection = reflectionDirection * 100.0;
+
+    vec2 pixelEnd = (projectAndDivide(gbufferProjection, pixelViewPos + rayDirection) * 0.5 + 0.5).xy;
+    pixelEnd = clamp(pixelEnd, vec2(0.0), vec2(1.0)) * screenResolution;
+
+    vec2 deltas = pixelEnd - pixelStart;
+    int pixelCoverage = max(int(max(abs(deltas.x), abs(deltas.y))) * 10, 1);
+
+    int steps = min(pixelCoverage, MAX_SSR_STEPS);
+
+    vec3 ray = pixelViewPos;
+    vec3 rayStep = rayDirection / steps;
+    vec3 ssRayPos;
+    float depthDelta;
+    
+    for(int i = 0; i < steps; i++){
+        ray += rayStep;
+        ssRayPos = projectAndDivide(gbufferProjection, ray) * 0.5 + 0.5; 
+        if(ssRayPos.x < 0.0 || ssRayPos.x > 1.0 || ssRayPos.y < 0.0 || ssRayPos.y > 1.0) return color;
+        depthDelta = linearizeDepth(ssRayPos.z) - linearizeDepth(texture(depthtex2, ssRayPos.xy).r);
+        if(depthDelta > -0.1 && depthDelta < 0.46) return textureLod(CTEX1, ssRayPos.xy, (float(i) / float(steps)) * 15.0 * roughness).rgb;
+    }
+    return depthDelta < 0.0 ? textureLod(CTEX1, pixelEnd / screenResolution, 15.0 * roughness).rgb : color;
 }
