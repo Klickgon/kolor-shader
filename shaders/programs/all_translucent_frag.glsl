@@ -55,6 +55,7 @@ layout(location = 5) out vec4 specularMap;
 
 
 void main() {
+    //discard;
     #ifdef DISTANT_HORIZONS
         #if defined DH
             if(viewPosLength < far * 0.80) discard;

@@ -187,13 +187,21 @@ void main() {
 		float f0 = specularMaps.g * (0.2+0.8*metallic);
 		float smoothness = (1-roughness);
 		float fresnel = pow(clamp(1.0+surfaceDot, 0.0, 1.0), 8.0) * smoothness;
-		float reflectStrength = clamp(f0+(1.0-f0)*fresnel, 0.0, 1.0);
+		float reflectStrength = clamp(f0+(1.0-f0)*fresnel * smoothness, 0.0, 1.0);
 		reflectStrength *= reflectStrength;
 		#ifdef SCREEN_SPACE_REFLECTIONS
-			if(!isDH && reflectStrength > 0.001 && roughness < 0.99) reflectionColor = screenSpaceReflections(reflectionColor, viewPos, reflectionVec, roughness);
+			#if defined DISTANT_HORIZONS
+				if(reflectStrength > 0.001 && roughness < 0.99) reflectionColor = screenSpaceReflections(reflectionColor, viewPos, reflectionVec, roughness, isDH);
+			#else
+				if(reflectStrength > 0.001 && roughness < 0.99) reflectionColor = screenSpaceReflections(reflectionColor, viewPos, reflectionVec, roughness);
+			#endif
 		#endif
-		if(metallic > 0.5) reflectionColor *= pow(color.rgb, vec3(2.0));
-		color.rgb = mix(color.rgb, reflectionColor, reflectStrength * RGBluminance(reflectionColor)); // 
+		if(metallic > 0.5){
+			reflectionColor *= pow(color.rgb, vec3(1.2));
+			reflectStrength *= RGBluminance(reflectionColor) * 0.5 + 0.5;
+		}
+		else reflectStrength *= RGBluminance(reflectionColor);
+		color.rgb = mix(color.rgb, reflectionColor, reflectStrength);
 
 		if(shadow > 0.0) {
 			#if SPECULAR_LIGHT_QUALITY == 1

@@ -28,7 +28,7 @@
             vec3 ssPos = projectAndDivide(gbufferProjection, pixelViewPos) * 0.5 + 0.5;
             if(ssPos.x < 0.0 || ssPos.x > 1.0 || ssPos.y < 0.0 || ssPos.y > 1.0) return false;
             float delta = linearizeDepth(ssPos.z) - linearizeDepth(texture(depthtex0, ssPos.xy).r) - bias;
-            if(delta > 0.0 && delta < 0.08) return true;
+            if(delta > 0.01 && delta < 0.08) return true;
         }
         return false;
     }
@@ -46,7 +46,7 @@
             float offset = noise.b * 0.20 + 1.0;
             for(int i = 0; i < 32.0; i++){
                 pixelViewPos += rayStep * offset;
-                vec3 ssPos = projectAndDivide(dhPreviousProjection, pixelViewPos) * 0.5 + 0.5;
+                vec3 ssPos = projectAndDivide(dhProjection, pixelViewPos) * 0.5 + 0.5;
                 if(ssPos.x < 0.0 || ssPos.x > 1.0 || ssPos.y < 0.0 || ssPos.y > 1.0) return false;
                 float delta = linearizeDepthDH(ssPos.z) - linearizeDepthDH(texture(dhDepthTex1, ssPos.xy).r) - bias;
                 if(delta > 6.0 && delta < 25.0) return true;
@@ -157,7 +157,7 @@
         #endif
 
         #if SHADOW_FILTER_QUALITY == 0
-            vec2 randOffset = vec2(0.0); 
+            const vec2 randOffset = vec2(0.0); 
         #else
             vec2 randOffset = (vec2(noise.g, noise.b) - 0.5) * 0.5;
         #endif

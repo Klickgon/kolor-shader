@@ -1,13 +1,13 @@
 #define PI 3.1415926535897932384626433832795
 #define BLOCKLIGHT (vec3(0.66, 0.34, 0.15) * 3.0)
 
-#define SUNCOLOR_MORNING (vec3(0.71, 0.42, 0.22) * 13)
-#define SUNCOLOR_NOON (vec3(0.71, 0.49, 0.29) * 9)
-#define SUNCOLOR_EVENING (vec3(0.89, 0.30, 0.05) * 25)
+#define SUNCOLOR_MORNING (vec3(1.0, 0.591, 0.309) * 13.0)
+#define SUNCOLOR_NOON (vec3(1.0, 0.67, 0.408) * 9.0)
+#define SUNCOLOR_EVENING (vec3(1.0, 0.337, 0.056) * 25.0)
 
-#define MOONCOLOR_EARLY (vec3(0.64, 0.66, 0.71))
-#define MOONCOLOR_MIDNIGHT (vec3(0.51, 0.54, 0.62) * 19)
-#define MOONCOLOR_LATE (vec3(0.64, 0.66, 0.71) * 3)
+#define MOONCOLOR_EARLY (vec3(0.901, 0.929, 1.0))
+#define MOONCOLOR_MIDNIGHT (vec3(0.822 , 0.871, 1.0) * 19.0)
+#define MOONCOLOR_LATE (vec3(0.901, 0.929, 1.0) * 3.0)
 
 float getLightIntensity(float x){
 	return 0.10 * sin(x * PI) + 1.0;

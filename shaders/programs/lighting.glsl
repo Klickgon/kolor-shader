@@ -218,7 +218,7 @@ void main() {
 	float shadow;
 	
 	bool surfaceFacingLight = lightDot > 0.0;
-	float shadowRange = clamp((viewPosLength - shadowRenderDis * (1-SHADOW_FADE_LENGTH)) / (shadowRenderDis - shadowRenderDis * (1-SHADOW_FADE_LENGTH)), 0.0, 1.0);
+	float shadowRange = isDH ? 1.0 : clamp((viewPosLength - shadowRenderDis * (1-SHADOW_FADE_LENGTH)) / (shadowRenderDis - shadowRenderDis * (1-SHADOW_FADE_LENGTH)), 0.0, 1.0);
 
 	vec3 tint = vec3(1.0);
 	if (!isDH && sss && shadowRange < 1.0 && surfaceFacingLight) {
@@ -245,12 +245,12 @@ void main() {
 	shadowTint = vec4(tint, 1.0);
 	
 	#if defined DISTANT_HORIZONS && defined SCREEN_SPACE_SHADOWS && !defined TRANSLUCENT_PASS
-		float outsideShadow = isDH ? min(float(!screenSpaceShadowDH(viewPos, screenPos.z, vertexLightDot, viewPosLength)), clamp(lmcoord.y * 5.0 - 0.5, 0.0, 1.0)) : clamp(lmcoord.y * 5.0 - 3.5, 0.0, 1.0);
+		float outsideShadow = isDH ? min(float(!screenSpaceShadowDH(viewPos, screenPos.z, vertexLightDot, viewPosLength)), clamp(lmcoord.y * 5.0 - 3.5, 0.0, 1.0)) : clamp(lmcoord.y * 5.0 - 3.5, 0.0, 1.0);
 	#else
 		float outsideShadow = clamp(lmcoord.y * 5.0 - 3.5, 0.0, 1.0);
 	#endif
 
-	shadow = mix(shadow * lightDotSqrt, (outsideShadow * float(surfaceFacingLight)) * lightDotSqrt, shadowRange);
+	shadow = mix(shadow * lightDotSqrt, outsideShadow * float(surfaceFacingLight) * lightDotSqrt, shadowRange);
 
 	float lightFadeOut = clamp((shadowAngle > 0.25 ? abs(shadowAngle - 0.5) : abs(shadowAngle)) * 100.0, 0.0, 1.0);
 	lightFadeOut *= lightFadeOut;
@@ -259,14 +259,14 @@ void main() {
 	extraInfoBuffer = vec4(extraInfo.rg, shadow, 1.0);
 	
 	color.rgb *= mix(pow(vanillaAO, 1.5), vanillaAO, shadow);
-	lm.y = mix(lmcoord.y * SHADOW_BRIGHTNESS, 1.0, shadow);
+	lm.y = mix(lmcoord.y * SHADOW_BRIGHTNESS, lm.y, shadow);
 
 	sky *= mix(vec3(lm.y * clamp(lightDot * 0.1 + 2.0, 0.9, 1.1)), celestialColor * tint, shadow);
  	
 	lm.x /= max((1+lmcoord.y*lmcoord.y*2) * intensitysky, 0.0001);
 	
 	color.rgb *= intensitysky * sky + BLOCKLIGHT * lm.x;
-	//color.rgb = vec3(lmcoord.x);
+	//color.rgb = vec3(lm.y);
 	color.rgb = Linear_to_sRGB(color.rgb);
 	
 	gl_FragData[0] = color;
