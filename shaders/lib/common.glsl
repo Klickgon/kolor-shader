@@ -5,9 +5,16 @@
 #define SUNCOLOR_NOON (vec3(1.0, 0.67, 0.408) * 9.0)
 #define SUNCOLOR_EVENING (vec3(1.0, 0.337, 0.056) * 25.0)
 
-#define MOONCOLOR_EARLY (vec3(0.901, 0.929, 1.0))
-#define MOONCOLOR_MIDNIGHT (vec3(0.822 , 0.871, 1.0) * 19.0)
+#define MOONCOLOR_EARLY (vec3(0.901, 0.929, 1.0) * 0.1)
+#define MOONCOLOR_MIDNIGHT (vec3(0.822 , 0.871, 1.0) * 11.0)
 #define MOONCOLOR_LATE (vec3(0.901, 0.929, 1.0) * 3.0)
+
+#define MASK_SOLID 0.0
+#define DH_MASK_SOLID 1.0/15.0
+#define MASK_TRANSLUCENT 2.0/15.0
+#define DH_MASK_TRANSLUCENT 3.0/15.0
+#define HAND_MASK_SOLID 4.0/15.0
+#define HAND_MASK_TRANSLUCENT 5.0/15.0
 
 float getLightIntensity(float x){
 	return 0.10 * sin(x * PI) + 1.0;
@@ -50,6 +57,13 @@ float RGBluminance(vec3 color){
 
 float fixHandDepth(float screenDepth) {
 	return ((screenDepth * 2.0 - 1.0) / MC_HAND_DEPTH) * 0.5 + 0.5;
+}
+
+float sampleDepthWithHandFix(sampler2D dtex, vec2 coord){
+	float mask = texture(ETEX5, coord).r;
+	bool isHand = mask == HAND_MASK_SOLID || mask == HAND_MASK_TRANSLUCENT;
+	float depth = texture(dtex, coord).r;
+	return isHand ? fixHandDepth(depth) : depth;
 }
 
 float linearizeDepth(float depth) {

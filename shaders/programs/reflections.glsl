@@ -44,7 +44,6 @@ uniform sampler2D STEX6;
 uniform sampler2D SHTTEX7;
 
 uniform sampler2D texture;
-uniform sampler2D noisetex;
 uniform sampler2D depthtex0;
 uniform sampler2D depthtex1;
 uniform sampler2D depthtex2;
@@ -115,12 +114,12 @@ float vanillaAO = extraInfo.g;
 vec3 normalizedShadowLightPos = shadowLightPosition * 0.01;
 vec3 celestialColor = getCelestialColor();
 
-vec4 getNoise(vec2 coord){
-  ivec2 noiseCoord = ivec2(coord * vec2(viewWidth, viewHeight)) % noiseTextureResolution; 
-  return texelFetch(noisetex, noiseCoord, 0);
+float getNoise(vec2 coord){
+  vec2 pixel = coord * vec2(viewWidth, viewHeight);
+  return mod(52.9829189 * mod(0.06711056*pixel.x + 0.00583715*pixel.y, 1.0), 1.0);
 }
 
-vec4 noise = getNoise(texcoord);
+float noise = getNoise(texcoord);
 
 #include "/lib/reflect_functions.glsl"
 
@@ -130,7 +129,7 @@ void main() {
 	vec4 precolor = color;
 	float maskInfo = extraInfo.r;
     #if defined TRANSLUCENT_PASS
-		if(maskInfo <= 1.0/15.0){ // mask
+		if(maskInfo <= DH_MASK_SOLID || maskInfo == HAND_MASK_SOLID){ // mask
 			gl_FragData[0] = color;
 			return;
 		}
@@ -138,14 +137,14 @@ void main() {
 
 	vec3 screenPos;
 	#if defined DISTANT_HORIZONS
-		isDH = maskInfo == 1.0/15.0 || maskInfo == 3.0/15.0;
+		isDH = maskInfo == DH_MASK_SOLID || maskInfo == 3.0/15.0;
 		
 		if(isDH){
 			screenPos = vec3(texcoord.xy, texture(DTEXDH, texcoord).r);
 		}
 		else 
 	#endif
-	screenPos = vec3(texcoord.xy, texture(DTEX, texcoord).r);
+	screenPos = vec3(texcoord.xy, sampleDepthWithHandFix(DTEX, texcoord));
 	
 	vec3 viewPos;
 	#if defined DISTANT_HORIZONS
@@ -157,7 +156,7 @@ void main() {
 	float viewPosLength = length(viewPos);
 
 	#ifdef NORMAL_MAPPING
-		normalMaps = isDH ? normal : normalize((textureLod(NMTEX4, texcoord, screenPos.z * 0.1).rgb - 0.5) * 2.0);
+		normalMaps = normalize((texture(NMTEX4, texcoord).rgb - 0.5) * 2.0);
 	#endif
 	screenPos = viewSpace_to_screenSpace(viewPos);
     
@@ -165,22 +164,17 @@ void main() {
 		gl_FragData[0] = color;
 		return;
 	}
-    //float intensity = getLightIntensity(sunAngle);
-	float intensity = 1.0;
     vec3 normalizedViewPos = normalize(viewPos);
     float surfaceDot = dot(normalizedViewPos, normal);
     float shadow = extraInfo.b;
     vec3 tint = texture(SHTTEX7, texcoord).rgb;
     color.rgb = sRGB_to_Linear(color.rgb);
-
-
-	
 	float roughness = pow(1 - specularMaps.r, 2.0);
 	vec3 reflectionColor = vec3(0.05);
 	if(specularMaps.g > 0.0 || roughness < 1.0) {
 		vec3 reflectionVec = reflect(normalizedViewPos, NMAP);
 		if(cameraPosition.y > 45.0){
-			reflectionColor = mix(reflectionColor, calcSkyColor(reflectionVec), clamp((cameraPosition.y - 45.0) * 0.1 * lmcoord.y, 0.0, 1.0));
+			reflectionColor = mix(reflectionColor, sRGB_to_Linear(calcSkyColor(reflectionVec)), clamp((cameraPosition.y - 45.0) * 0.1 * lmcoord.y, 0.0, 1.0));
 		}
 		
 		float metallic = float(specularMaps.g * 255.0 > 229.0);
@@ -190,43 +184,35 @@ void main() {
 		float reflectStrength = clamp(f0+(1.0-f0)*fresnel * smoothness, 0.0, 1.0);
 		reflectStrength *= reflectStrength;
 		#ifdef SCREEN_SPACE_REFLECTIONS
+			bool ssr = reflectStrength > 0.005 && roughness < 0.9;
 			#if defined DISTANT_HORIZONS
-				if(reflectStrength > 0.001 && roughness < 0.99) reflectionColor = screenSpaceReflections(reflectionColor, viewPos, reflectionVec, roughness, isDH);
+				if(ssr) reflectionColor = screenSpaceReflections(reflectionColor, viewPos, reflectionVec, roughness, isDH);
 			#else
-				if(reflectStrength > 0.001 && roughness < 0.99) reflectionColor = screenSpaceReflections(reflectionColor, viewPos, reflectionVec, roughness);
+				if(ssr) reflectionColor = screenSpaceReflections(reflectionColor, viewPos, reflectionVec, roughness);
 			#endif
+			
 		#endif
 		if(metallic > 0.5){
-			reflectionColor *= pow(color.rgb, vec3(1.2));
+			reflectionColor *= pow(color.rgb, vec3(1.7));
 			reflectStrength *= RGBluminance(reflectionColor) * 0.5 + 0.5;
 		}
-		else reflectStrength *= RGBluminance(reflectionColor);
+		else reflectStrength *= sqrt(RGBluminance(reflectionColor));
 		color.rgb = mix(color.rgb, reflectionColor, reflectStrength);
 
 		if(shadow > 0.0) {
 			#if SPECULAR_LIGHT_QUALITY == 1
-				specularHighlight = getSpecularHighlight(normalizedViewPos, lightDot, roughness);
-				color.rgb += specularHighlight * celestialColor * tint * shadow;
+				float lightDot = lightPassthrough ? 1.0 : dot(normalizedShadowLightPos, NMAP);
+				color.rgb += getSpecularHighlight(normalizedViewPos, lightDot, roughness) * celestialColor * tint * shadow  * (1.0 - 0.9*float(sunAngle != shadowAngle));
 			#else	
 				vec3 reflectance = metallic == 1.0 ? color.rgb : vec3(specularMaps.g);
-				color.rgb += max(brdf(normalizedShadowLightPos, -normalizedViewPos, 1-smoothness*0.9, NMAP, color.rgb, metallic, reflectance) * celestialColor * tint * shadow * 0.1, 0.0);
+				color.rgb += max(brdf(normalizedShadowLightPos, -normalizedViewPos, 1-smoothness*0.9, NMAP, color.rgb, metallic, reflectance) * celestialColor * tint * shadow * (0.1 - 0.09*float(sunAngle != shadowAngle)), 0.0);
 			#endif
 		}
 	}
-	#if defined DISTANT_HORIZONS
-		float fogEnd = dhRenderDistance;
-	#else
-		float fogEnd = far;	
-	#endif
-
-	float fogStart = (fogEnd-10.0) * FOG_START_MULTIPLIER;
-
-	float fogAmount = clamp((viewPosLength - fogStart) / (fogEnd - fogStart), 0.0, 1.0);
-
-	color.rgb = mix(color.rgb, sRGB_to_Linear(fogColor), fogAmount * fogAmount);
+	
 	
 	//#if defined TRANSLUCENT_PASS
-    	//color.rgb = vec3(maskInfo);
+    	//color.rgb = vec3(roughness);
 	//#endif
     color.rgb = Linear_to_sRGB(color.rgb);
 

@@ -19,6 +19,7 @@
 #define NORMAL_MAP_STRENGTH 0.5 // [0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0]
 #define SPECULAR_MAPPING 2 //[0 1 2]
 #define SPECULAR_LIGHT_QUALITY 2 //[1 2]
+#define SHADER_WATER
 
 const float ambientOcclusionLevel = 1.0;
 

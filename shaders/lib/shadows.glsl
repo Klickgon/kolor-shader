@@ -17,11 +17,11 @@
 
 #if defined SCREEN_SPACE_SHADOWS && !defined TRANSLUCENT_PASS
     bool screenSpaceShadow(vec3 pixelViewPos, float depth, float lightDot, float surfaceDot){
-        if(surfaceDot > 0.8) return false;
+        if(surfaceDot > 0.8 || lightDot < 0.01) return false;
         depth = linearizeDepth(depth);
-        float bias = (1-lightDot) * (1+surfaceDot * 0.1) * depth * 0.0075;
+        float bias = (1.0-lightDot) * (1.0+surfaceDot * 7.0) * depth * 0.002;
         vec3 raydir = shadowLightPosition * 0.0025;
-        float offset = noise.b * 0.25 + 1.0;
+        float offset = noise * 0.25 + 1.0;
         vec3 rayStep = raydir / 32.0 * offset;
         for(int i = 0; i < 32.0; i++){
             pixelViewPos += rayStep;
@@ -43,7 +43,7 @@
 
             vec3 raydir = shadowLightPosition * 0.025;
             vec3 rayStep = raydir / 32.0;
-            float offset = noise.b * 0.20 + 1.0;
+            float offset = noise * 0.20 + 1.0;
             for(int i = 0; i < 32.0; i++){
                 pixelViewPos += rayStep * offset;
                 vec3 ssPos = projectAndDivide(dhProjection, pixelViewPos) * 0.5 + 0.5;
@@ -60,12 +60,12 @@
     float calculatePenumbra(sampler2D stex, vec3 shadowPos){
         float blockerDepth = 0.0;
         float blockerCount = 0.0;
-        mat2 rotation = getRotationMat2(noise.r);
+        mat2 rotation = getRotationMat2(noise);
 
         #if SHADOW_FILTER_QUALITY == 0
             vec2 randOffset = vec2(0.0); 
         #else
-            vec2 randOffset = (vec2(noise.g, noise.b) - 0.5) * 0.5;
+            vec2 randOffset = (vec2(noise, 1-noise) - 0.5) * 0.5;
         #endif
 
         vec2 penumPattern[13] = vec2[](vec2(0.0), vec2(1.0223, 1.0341), vec2(-1.045, -1.012), vec2(1.0123, -1.0312), vec2(-1.053, 1.0512), vec2(0.25412, 0.45124), vec2(-0.25126, -0.45521), vec2(0.45521, -0.255212), vec2(-0.45521, 0.255521), vec2(-1.26132, 0.0621), vec2(1.2412, 0.0421), vec2(0.0642, -1.2521), vec2(0.0212, 1.24421));
@@ -88,7 +88,7 @@
     float filteredShadow(vec3 shadowPos, float samplingSpacing){
         float color = 0.0;
         vec2 pattern[SAMPLING_PATTERN_LENGTH] = SAMPLING_PATTERN;
-        mat2 rotation = getRotationMat2(noise.r); // matrix to rotate the offset around the original position by the angle
+        mat2 rotation = getRotationMat2(noise); // matrix to rotate the offset around the original position by the angle
         #ifdef PENUMBRA_SHADOWS
             samplingSpacing += calculatePenumbra(shadowtex1, shadowPos);
         #endif
@@ -96,7 +96,7 @@
         #if SHADOW_FILTER_QUALITY == 0
             vec2 randOffset = vec2(0.0); 
         #else
-            vec2 randOffset = (vec2(noise.g, noise.b) - 0.5) * 0.5;
+            vec2 randOffset = (vec2(noise, 1-noise) - 0.5) * 0.5;
         #endif
         for(int i = 0; i < SAMPLING_PATTERN_LENGTH; i++){
             vec2 samplePos = shadowPos.xy + ((pattern[i] + randOffset) * rotation * samplingSpacing / 4096.0);
@@ -108,14 +108,14 @@
         vec4 filteredShadow(vec3 shadowPos, float samplingSpacing, float intensitysky){
             vec4 color = vec4(0.0);
             vec2 pattern[SAMPLING_PATTERN_LENGTH] = SAMPLING_PATTERN;
-            mat2 rotation = getRotationMat2(noise.r); // matrix to rotate the offset around the original position by the angle
+            mat2 rotation = getRotationMat2(noise); // matrix to rotate the offset around the original position by the angle
             #ifdef PENUMBRA_SHADOWS
                 samplingSpacing += calculatePenumbra(shadowtex0, shadowPos);
             #endif
             #if SHADOW_FILTER_QUALITY == 0
                 vec2 randOffset = vec2(0.0); 
             #else
-                vec2 randOffset = (vec2(noise.g, noise.b) - 0.5) * 0.5;
+                vec2 randOffset = (vec2(noise, 1-noise) - 0.5) * 0.5;
             #endif
             int lightMix = 0;
             float tintsamples = 0.0;
@@ -148,10 +148,10 @@
         }
 #else 
     float filteredShadow(vec3 shadowPos, float samplingSpacing){
-        vec4 noise = getNoise(texcoord);
+        float noise = getNoise(texcoord);
         float color = 0.0;
         vec2 pattern[SAMPLING_PATTERN_LENGTH] = SAMPLING_PATTERN;
-        mat2 rotation = getRotationMat2(noise.r); // matrix to rotate the offset around the original position by the angle
+        mat2 rotation = getRotationMat2(noise); // matrix to rotate the offset around the original position by the angle
         #ifdef PENUMBRA_SHADOWS
             samplingSpacing += calculatePenumbra(shadowtex0, shadowPos);
         #endif
@@ -159,7 +159,7 @@
         #if SHADOW_FILTER_QUALITY == 0
             const vec2 randOffset = vec2(0.0); 
         #else
-            vec2 randOffset = (vec2(noise.g, noise.b) - 0.5) * 0.5;
+            vec2 randOffset = (vec2(noise, 1-noise) - 0.5) * 0.5;
         #endif
         for(int i = 0; i < SAMPLING_PATTERN_LENGTH; i++){
             vec2 samplePos = shadowPos.xy + ((pattern[i] + randOffset) * rotation * samplingSpacing / shadowMapResolution);

@@ -34,9 +34,10 @@ void main() {
 	#endif
 			gl_Position = ftransform();
 			vec3 shadowViewPos = (gl_ModelViewMatrix * gl_Vertex).xyz;
-			if(mc_Entity.x == 10601.0 || mc_Entity.x == 2003.0 || (mc_Entity.x == 12412.0 && mc_midTexCoord.y > texcoord.y)){
+			if(mc_Entity.x == 2.0 || mc_Entity.x == 10601.0 || mc_Entity.x == 2003.0 || (mc_Entity.x == 12412.0 && mc_midTexCoord.y > texcoord.y)){
 				vec3 worldPos = (shadowModelViewInverse * vec4(shadowViewPos, 1.0)).xyz + cameraPosition;
 				worldPos = applyWindEffect(worldPos);
+				if(mc_Entity.x == 2.0) worldPos = applyWaveEffect(worldPos);
 				gl_Position = shadowModelView * vec4(worldPos - cameraPosition, 1.0);
 				gl_Position = shadowProjection * gl_Position;
 			}

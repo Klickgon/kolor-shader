@@ -3,7 +3,6 @@
 /*
 const int colortex2Format = RGB16;
 const int colortex3Format = RGB16;
-const bool colortex3MipmapEnabled = true;
 */
 
 #define CTEX1 colortex0
@@ -50,7 +49,6 @@ uniform sampler2D shadowcolor1;
 uniform sampler2D shadowtex0;
 uniform sampler2D shadowtex1;
 uniform sampler2D texture;
-uniform sampler2D noisetex;
 uniform sampler2D depthtex0;
 uniform sampler2D depthtex1;
 uniform sampler2D depthtex2;
@@ -123,12 +121,12 @@ vec3 normalizedShadowLightPos = shadowLightPosition * 0.01;
 vec3 celestialColor = getCelestialColor();
 
 
-vec4 getNoise(vec2 coord){
-  ivec2 noiseCoord = ivec2(coord * vec2(viewWidth, viewHeight)) % noiseTextureResolution; 
-  return texelFetch(noisetex, noiseCoord, 0);
+float getNoise(vec2 coord){
+  vec2 pixel = coord * vec2(viewWidth, viewHeight);
+  return mod(52.9829189 * mod(0.06711056*pixel.x + 0.00583715*pixel.y, 1.0), 1.0);
 }
 
-vec4 noise = getNoise(texcoord);
+float noise = getNoise(texcoord);
 float shadowRenderDis = min(shadowDistance * shadowDistanceRenderMul, far);
 
 #include "/lib/distort.glsl"
@@ -143,7 +141,7 @@ void main() {
 	vec4 precolor = color;
 	float maskInfo = extraInfo.r;
     #if defined TRANSLUCENT_PASS
-		if(maskInfo <= 1.0/15.0){ // mask
+		if(maskInfo <= DH_MASK_SOLID || maskInfo == HAND_MASK_SOLID){ // mask
 			extraInfoBuffer = vec4(extraInfo, 1.0);
 			shadowTint = vec4(1.0);
 			gl_FragData[0] = color;
@@ -153,14 +151,13 @@ void main() {
 
 	vec3 screenPos;
 	#if defined DISTANT_HORIZONS
-		isDH = maskInfo == 1.0/15.0 || maskInfo == 3.0/15.0;
-		
+		isDH = maskInfo == DH_MASK_SOLID || maskInfo == DH_MASK_TRANSLUCENT;
 		if(isDH){
 			screenPos = vec3(texcoord.xy, texture(DTEXDH, texcoord).r);
 		}
 		else 
 	#endif
-	screenPos = vec3(texcoord.xy, texture(DTEX, texcoord).r);
+	screenPos = vec3(texcoord.xy, sampleDepthWithHandFix(DTEX, texcoord));
 	
 
 	vec3 viewPos;
@@ -172,7 +169,7 @@ void main() {
 	
 	float viewPosLength = length(viewPos);
 	#ifdef NORMAL_MAPPING
-		normalMaps = isDH ? normal : normalize((texture(NMTEX4, texcoord).rgb - 0.5) * 2.0);
+		normalMaps = normalize((texture(NMTEX4, texcoord).rgb - 0.5) * 2.0);
 	#endif
 	screenPos = viewSpace_to_screenSpace(viewPos);
 
@@ -193,7 +190,7 @@ void main() {
 	vec3 sky = mix(skyColor, vec3(0.02), intensity - 0.5);
 	vertexLightDot = clamp(vertexLightDot, 0.0, 1.0);
 	
-	float lightDot = lightPassthrough ? 1.0 : dot(normalizedShadowLightPos, isDH ? normal : NMAP);
+	float lightDot = lightPassthrough ? 1.0 : dot(normalizedShadowLightPos, NMAP);
 	float lightDotSqrt = sqrt(clamp(lightDot, 0.0, 1.0));
 
 	
@@ -266,7 +263,24 @@ void main() {
 	lm.x /= max((1+lmcoord.y*lmcoord.y*2) * intensitysky, 0.0001);
 	
 	color.rgb *= intensitysky * sky + BLOCKLIGHT * lm.x;
-	//color.rgb = vec3(lm.y);
+
+	#if defined DISTANT_HORIZONS
+		float fogEnd = dhRenderDistance;
+	#else
+		float fogEnd = far;	
+	#endif
+
+	float fogStart = (fogEnd-10.0) * FOG_START_MULTIPLIER;
+
+	#if defined DISTANT_HORIZONS
+		fogStart *= 0.25;
+	#endif
+
+	float fogAmount = clamp((viewPosLength - fogStart) / (fogEnd - fogStart), 0.0, 1.0);
+
+	color.rgb = mix(color.rgb, sRGB_to_Linear(fogColor), fogAmount * fogAmount);
+
+	//color.rgb = vec3(NMAP);
 	color.rgb = Linear_to_sRGB(color.rgb);
 	
 	gl_FragData[0] = color;

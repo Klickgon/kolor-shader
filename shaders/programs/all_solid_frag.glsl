@@ -38,9 +38,8 @@ varying float vertexLightDot;
 varying float viewPosLength;
 varying float vanillaAO;
 
-vec4 getNoise(vec2 coord){
-  ivec2 noiseCoord = ivec2(coord) % noiseTextureResolution; 
-  return texelFetch(noisetex, noiseCoord, 0);
+float getNoise(vec2 coord){
+  return mod(52.9829189 * mod(0.06711056*coord.x + 0.00583715*coord.y, 1.0), 1.0);
 }
 
 /* RENDERTARGETS: 0,1,2,3,4,5 */
@@ -57,21 +56,23 @@ void main() {
             vec2 fragCoord = gl_FragCoord.xy / vec2(viewWidth, viewHeight);
             if(texture(depthtex0, fragCoord).r < 1.0) discard;
         #else
-            if(max((viewPosLength - far * 0.95) * 0.2, 0.0) > getNoise(gl_FragCoord.xy).r) discard;
+            if(max((viewPosLength - far * 0.95) * 0.2, 0.0) > getNoise(gl_FragCoord.xy)) discard;
         #endif
     #endif
     
     vec4 precolor = texture(gtexture, texcoord);
     if (precolor.a < 0.1) discard;
-
-    #if defined NORMAL_MAPPING && !defined(DH)
-        vec3 normalMaps;
-        mat3 tbn = mat3(tangent, bitangent, normal);
-        normalMaps = texture(normals, texcoord).rgb;
-        normalMaps.z = sqrt(1.0 - dot(normalMaps.xy, normalMaps.xy));
-        normalMaps = mix(vec3(0.5, 0.5, 1.0), normalMaps, NORMAL_MAP_STRENGTH);
-        normalMaps = normalMaps * 2.0 - 1.0;   
-        normalMaps = normalize(tbn * normalMaps);
+    
+    #ifdef NORMAL_MAPPING
+        vec3 normalMaps = normal;
+        #if !defined(DH)
+            mat3 tbn = mat3(tangent, bitangent, normal);
+            normalMaps = texture(normals, texcoord).rgb;
+            normalMaps.z = sqrt(1.0 - dot(normalMaps.xy, normalMaps.xy));
+            normalMaps = mix(vec3(0.5, 0.5, 1.0), normalMaps, NORMAL_MAP_STRENGTH);
+            normalMaps = normalMaps * 2.0 - 1.0;   
+            normalMaps = normalize(tbn * normalMaps);
+        #endif
     #endif
     
     precolor.rgb = pow(pow(precolor.rgb, vec3(2.2)) * pow(glcolor.rgb, vec3(2.2)), vec3(1.0/2.2));
@@ -79,10 +80,10 @@ void main() {
 
     lightmapData = vec4(lmcoord, vertexLightDot, 1.0);
     encodedNormal = vec4(normal * 0.5 + 0.5, 1.0);
+    #ifdef NORMAL_MAPPING
+        encodedNormalMap = vec4(normalMaps * 0.5 + 0.5, 1.0);
+    #endif 
     #if !defined DH
-        #ifdef NORMAL_MAPPING
-            encodedNormalMap = vec4(normalMaps * 0.5 + 0.5, 1.0);
-        #endif 
         #if SPECULAR_MAPPING == 2
             specularMap = vec4(texture(specular, texcoord).rgb, 1.0);
         #elif SPECULAR_MAPPING == 1
