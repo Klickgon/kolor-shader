@@ -129,9 +129,9 @@
                         //if the block light is high, modify the color less.
                         vec4 shadowLightColor = texture2D(shadowcolor0, samplePos.xy);
                         //make colors more intense when the shadow light color is more opaque.
-                        shadowLightColor.rgb = mix(vec3(1.0), sRGB_to_Linear(shadowLightColor.rgb), shadowLightColor.a);
+                        shadowLightColor.rgb = mix(vec3(1.0), sRGB_to_Linear(shadowLightColor.rgb), shadowLightColor.a * 0.5 + 0.5);
                         //apply the color
-                        color.rgb += shadowLightColor.rgb * intensitysky;
+                        color.rgb += shadowLightColor.rgb;
                         tintsamples += 1.0;
                         color.a += lmcoord.y;
                     } else {

@@ -54,20 +54,15 @@ float getNoise(vec2 coord){
     #include "/lib/noise.glsl"
 
     vec3 getWaveNormal(vec3 worldPos){
-        float wave = frameTimeCounter * 0.5;
+        float wave1 = frameTimeCounter * 0.2;
         const float wno = 0.01;
-        float h1 = fractalNoise(worldPos.xz * 0.7 + wave);
-        float h2 = fractalNoise(worldPos.xz * 0.7 + wave + vec2(wno, 0.0));
-        float h3 = fractalNoise(worldPos.xz * 0.7 + wave + vec2(0.0, wno));
+        float h1 = fractalNoise(worldPos.xz * 0.7 + wave1, 1.34,  0.74);
+        float h2 = fractalNoise(worldPos.xz * 0.7 + wave1 + vec2(wno, 0.0), 1.34, 0.74);
+        float h3 = fractalNoise(worldPos.xz * 0.7 + wave1 + vec2(0.0, wno), 1.34,  0.74);
+
         return vec3(h2-h1, h3-h1, 1.0) * 0.5 + 0.5;
     }
 #endif
-
-
-
-float grayScale(vec3 color){
-    return (color.r + color.g + color.b) / 3.0;
-}
 
 /* RENDERTARGETS: 0,1,2,3,4,5 */
 layout(location = 1) out vec4 lightmapData;
@@ -110,8 +105,7 @@ void main() {
         }
         else {
             precolor = WATER_COLOR;
-            precolor.rgb = pow(precolor.rgb, vec3(2.2));
-            precolor.rgb *= pow(glcolor.rgb, vec3(2.2));
+            precolor.rgb = mix(pow(precolor.rgb, vec3(2.2)), pow(glcolor.rgb, vec3(2.2)), 0.2);
             precolor.rgb = pow(precolor.rgb, vec3(1.0/2.2));
         }
     #endif

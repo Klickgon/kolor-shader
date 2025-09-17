@@ -16,6 +16,8 @@ in vec2 mc_midTexCoord;
 varying vec2 lmcoord;
 varying vec2 texcoord;
 varying vec4 glcolor;
+varying vec3 worldPos;
+flat varying float blockEntity;
 varying float distortFactor;
 
 #include "/settings.glsl"
@@ -26,6 +28,7 @@ void main() {
 	texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
 	lmcoord  = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
 	glcolor = gl_Color;
+	blockEntity = mc_Entity.x;
 	#ifdef EXCLUDE_FOLIAGE
 		if (mc_Entity.x == 12412.0 || mc_Entity.x == 10601.0) {
 			gl_Position = vec4(10.0);
@@ -34,8 +37,8 @@ void main() {
 	#endif
 			gl_Position = ftransform();
 			vec3 shadowViewPos = (gl_ModelViewMatrix * gl_Vertex).xyz;
+			worldPos = (shadowModelViewInverse * vec4(shadowViewPos, 1.0)).xyz + cameraPosition;
 			if(mc_Entity.x == 2.0 || mc_Entity.x == 10601.0 || mc_Entity.x == 2003.0 || (mc_Entity.x == 12412.0 && mc_midTexCoord.y > texcoord.y)){
-				vec3 worldPos = (shadowModelViewInverse * vec4(shadowViewPos, 1.0)).xyz + cameraPosition;
 				worldPos = applyWindEffect(worldPos);
 				if(mc_Entity.x == 2.0) worldPos = applyWaveEffect(worldPos);
 				gl_Position = shadowModelView * vec4(worldPos - cameraPosition, 1.0);

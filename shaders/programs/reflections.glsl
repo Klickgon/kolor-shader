@@ -190,7 +190,6 @@ void main() {
 			#else
 				if(ssr) reflectionColor = screenSpaceReflections(reflectionColor, viewPos, reflectionVec, roughness);
 			#endif
-			
 		#endif
 		if(metallic > 0.5){
 			reflectionColor *= pow(color.rgb, vec3(1.7));
@@ -216,9 +215,7 @@ void main() {
 	//#endif
     color.rgb = Linear_to_sRGB(color.rgb);
 
-    #if DRAW_SHADOW_MAP != 0
-		color = texture(DRAWMAP, texcoord);
-	#endif
+    
 	
 	gl_FragData[0] = color; 
 }

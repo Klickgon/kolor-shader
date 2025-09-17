@@ -282,6 +282,10 @@ void main() {
 
 	//color.rgb = vec3(NMAP);
 	color.rgb = Linear_to_sRGB(color.rgb);
+
+	#if DRAW_SHADOW_MAP != 0
+		color = texture(DRAWMAP, texcoord);
+	#endif
 	
 	gl_FragData[0] = color;
 	

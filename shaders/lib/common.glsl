@@ -89,6 +89,10 @@ vec3 screenSpace_to_viewSpace(vec3 screenPos){
 	return projectAndDivide(gbufferProjectionInverse, screenPos * 2.0 - 1.0);
 }
 
+float grayScale(vec3 color){
+    return (color.r + color.g + color.b) / 3.0;
+}
+
 vec3 viewSpace_to_screenSpace(vec3 viewPos){
 	return projectAndDivide(gbufferProjection, viewPos) * 0.5 + 0.5;
 }
