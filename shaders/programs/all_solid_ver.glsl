@@ -19,7 +19,7 @@ varying vec2 mc_midTexCoord;
 varying vec2 lmcoord;
 varying vec2 texcoord;
 varying vec4 glcolor;
-varying vec3 normal;
+varying vec3 vertexNormal;
 
 #ifdef NORMAL_MAPPING
     varying vec3 tangent;
@@ -41,12 +41,12 @@ void main() {
 	vanillaAO = glcolor.a;
 
 	#if defined TEXTURED
-		normal = vec3(0.0, 0.0, 1.0);
+		vertexNormal = vec3(0.0, 0.0, 1.0);
 	#else
-		normal = normalize(gl_NormalMatrix * gl_Normal);
+		vertexNormal = normalize(gl_NormalMatrix * gl_Normal);
 	#endif
 	bool lightPassthrough = mc_Entity.x == 10601.0 || mc_Entity.x == 12412.0;
-	vertexLightDot = lightPassthrough ? 1.0 : dot(normal, normalize(shadowLightPosition)) * (1.0-(1.0/16.0));
+	vertexLightDot = lightPassthrough ? 1.0 : dot(vertexNormal, normalize(shadowLightPosition)) * (1.0-(1.0/16.0));
 
 	vec3 viewPos = (gl_ModelViewMatrix * gl_Vertex).xyz;
 	viewPosLength = length(viewPos);
@@ -60,7 +60,7 @@ void main() {
 	}
 	#ifdef NORMAL_MAPPING
 		tangent = normalize(gl_NormalMatrix * at_tangent.xyz);
-		bitangent = cross(tangent, normal) * at_tangent.w;
+		bitangent = cross(tangent, vertexNormal) * at_tangent.w;
 	#endif
 	gl_Position = gl_ProjectionMatrix * vec4(viewPos, 1.0);
 }

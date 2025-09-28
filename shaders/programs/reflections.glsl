@@ -1,15 +1,17 @@
 #include "/settings.glsl"
-/*
-const bool colortex0MipmapEnabled = true;
-*/
 
-#define CTEX1 colortex0
+#if defined TRANSLUCENT_PASS
+	#define CTEX1 colortex7
+	uniform sampler2D colortex0;
+#else
+	#define CTEX1 colortex0
+#endif
 #define LTEX2 colortex1
 #define NTEX3 colortex2
 #define NMTEX4 colortex3
 #define ETEX5 colortex4
 #define STEX6 colortex5
-#define SHTTEX7 colortex6
+#define STTEX7 colortex6
 
 #if defined TRANSLUCENT_PASS
  	#define DTEX depthtex0
@@ -41,7 +43,7 @@ uniform sampler2D NTEX3;
 uniform sampler2D NMTEX4;
 uniform sampler2D ETEX5;
 uniform sampler2D STEX6;
-uniform sampler2D SHTTEX7;
+uniform sampler2D STTEX7;
 
 uniform sampler2D texture;
 uniform sampler2D depthtex0;
@@ -65,6 +67,7 @@ uniform mat4 gbufferProjectionInverse;
 	uniform mat4 dhPreviousProjection;
 #endif
 
+uniform int isEyeInWater;
 uniform vec3 skyColor;
 uniform float sunAngle;
 uniform float shadowAngle;
@@ -121,17 +124,18 @@ float getNoise(vec2 coord){
 
 float noise = getNoise(texcoord);
 
+#include "/lib/sky_and_fog_functions.glsl"
 #include "/lib/reflect_functions.glsl"
 
-/* RENDERTARGETS:0 */
 void main() {
 	vec4 color = texture(CTEX1, texcoord);
 	vec4 precolor = color;
 	float maskInfo = extraInfo.r;
     #if defined TRANSLUCENT_PASS
 		if(maskInfo <= DH_MASK_SOLID || maskInfo == HAND_MASK_SOLID){ // mask
-			gl_FragData[0] = color;
-			return;
+			//gl_FragData[0] = color;
+			//return;
+			discard;
 		}
     #endif
 
@@ -161,16 +165,17 @@ void main() {
 	screenPos = viewSpace_to_screenSpace(viewPos);
     
 	if(maskInfo == 1.0){
-		gl_FragData[0] = color;
-		return;
+		//gl_FragData[0] = color;
+		//return;
+		discard;
 	}
     vec3 normalizedViewPos = normalize(viewPos);
     float surfaceDot = dot(normalizedViewPos, normal);
     float shadow = extraInfo.b;
-    vec3 tint = texture(SHTTEX7, texcoord).rgb;
-    color.rgb = sRGB_to_Linear(color.rgb);
+    vec3 tint = texture(STTEX7, texcoord).rgb;
 	float roughness = pow(1 - specularMaps.r, 2.0);
 	vec3 reflectionColor = vec3(0.05);
+	
 	if(specularMaps.g > 0.0 || roughness < 1.0) {
 		vec3 reflectionVec = reflect(normalizedViewPos, NMAP);
 		if(cameraPosition.y > 45.0){
@@ -213,9 +218,8 @@ void main() {
 	//#if defined TRANSLUCENT_PASS
     	//color.rgb = vec3(roughness);
 	//#endif
-    color.rgb = Linear_to_sRGB(color.rgb);
+    //color.rgb = reflectionColor;
 
-    
 	
 	gl_FragData[0] = color; 
 }

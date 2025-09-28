@@ -1,11 +1,17 @@
 #include "/settings.glsl"
 
-/*
-const int colortex2Format = RGB16;
-const int colortex3Format = RGB16;
-*/
+#if defined TRANSLUCENT_PASS
+	#define CTEX1 colortex7
+	#ifdef REFLECTIONS
+		#define OUTPUT transparentOutColor
+	#else
+		#define OUTPUT outColor
+	#endif
+#else
+	#define CTEX1 colortex0
+	#define OUTPUT outColor
+#endif
 
-#define CTEX1 colortex0
 #define LTEX2 colortex1
 #define NTEX3 colortex2
 #define NMTEX4 colortex3
@@ -70,6 +76,7 @@ uniform mat4 gbufferProjectionInverse;
 	uniform mat4 dhPreviousProjection;
 #endif
 
+uniform int isEyeInWater;
 uniform vec3 skyColor;
 uniform float sunAngle;
 uniform float shadowAngle;
@@ -131,20 +138,22 @@ float shadowRenderDis = min(shadowDistance * shadowDistanceRenderMul, far);
 
 #include "/lib/distort.glsl"
 #include "/lib/shadows.glsl"
+#include "/lib/sky_and_fog_functions.glsl"
 
-/* RENDERTARGETS:0,4,6 */
+/* RENDERTARGETS:0,4,6,7 */
+layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 extraInfoBuffer;
 layout(location = 2) out vec4 shadowTint;
+layout(location = 3) out vec4 transparentOutColor;
 
 void main() {
 	vec4 color = texture(CTEX1, texcoord);
-	vec4 precolor = color;
 	float maskInfo = extraInfo.r;
     #if defined TRANSLUCENT_PASS
 		if(maskInfo <= DH_MASK_SOLID || maskInfo == HAND_MASK_SOLID){ // mask
 			extraInfoBuffer = vec4(extraInfo, 1.0);
 			shadowTint = vec4(1.0);
-			gl_FragData[0] = color;
+			OUTPUT = color;
 			return;
 		}
     #endif
@@ -176,17 +185,17 @@ void main() {
 	if(maskInfo == 1.0){
 		extraInfoBuffer = vec4(extraInfo, 1.0);
 		shadowTint = vec4(1.0);
-		gl_FragData[0] = color;
+		OUTPUT = color;
 		return;
 	}
 	vec3 feetPlayerPos = (gbufferModelViewInverse * vec4(viewPos, 1.0)).xyz;
 	vec3 worldPos = feetPlayerPos + cameraPosition;
 	vec2 lm = lmcoord;
-	color.rgb = sRGB_to_Linear(color.rgb);
-
 	
 	float intensity = getLightIntensity(sunAngle);
 	float intensitysky = (0.25 * getLightIntensity(sunAngle)) + 0.5;
+	vec3 normalizedViewPos = normalize(viewPos);
+	//vec3 sky = mix(calcSkyColor(NMAP), vec3(0.02), intensity - 0.5);
 	vec3 sky = mix(skyColor, vec3(0.02), intensity - 0.5);
 	vertexLightDot = clamp(vertexLightDot, 0.0, 1.0);
 	
@@ -200,7 +209,7 @@ void main() {
 		hand *= hand;
 		lm.x = mix(lm.x, 1.0, hand * hand);
 	#endif
-	vec3 normalizedViewPos = normalize(viewPos);
+	
 	float surfaceDot = dot(normalizedViewPos, normal);
 	vec3 shadowScreen;
 	#ifdef SCREEN_SPACE_SHADOWS
@@ -242,12 +251,13 @@ void main() {
 	shadowTint = vec4(tint, 1.0);
 	
 	#if defined DISTANT_HORIZONS && defined SCREEN_SPACE_SHADOWS && !defined TRANSLUCENT_PASS
-		float outsideShadow = isDH ? min(float(!screenSpaceShadowDH(viewPos, screenPos.z, vertexLightDot, viewPosLength)), clamp(lmcoord.y * 5.0 - 3.5, 0.0, 1.0)) : clamp(lmcoord.y * 5.0 - 3.5, 0.0, 1.0);
+		float outsideShadow =  min(isDH ? float(!screenSpaceShadowDH(viewPos, screenPos.z, vertexLightDot, viewPosLength)) : 1.0, clamp(lmcoord.y * 5.0 - 3.5, 0.0, 1.0));
 	#else
 		float outsideShadow = clamp(lmcoord.y * 5.0 - 3.5, 0.0, 1.0);
 	#endif
-
+	
 	shadow = mix(shadow * lightDotSqrt, outsideShadow * float(surfaceFacingLight) * lightDotSqrt, shadowRange);
+	float preshadow = shadow;
 
 	float lightFadeOut = clamp((shadowAngle > 0.25 ? abs(shadowAngle - 0.5) : abs(shadowAngle)) * 100.0, 0.0, 1.0);
 	lightFadeOut *= lightFadeOut;
@@ -260,33 +270,31 @@ void main() {
 
 	sky *= mix(vec3(lm.y * clamp(lightDot * 0.1 + 2.0, 0.9, 1.1)), celestialColor * tint, shadow);
  	
-	lm.x /= max((1+lmcoord.y*lmcoord.y*2) * intensitysky, 0.0001);
+	lm.x = lmcoord.x >= 0.99 ? 1.0 : lm.x / (max((1+lmcoord.y*lmcoord.y * 1.5) * intensitysky, 0.0001));
 	
 	color.rgb *= intensitysky * sky + BLOCKLIGHT * lm.x;
 
 	#if defined DISTANT_HORIZONS
-		float fogEnd = dhRenderDistance;
+		float fogEnd = isEyeInWater >= 1 ? 60.0 : dhRenderDistance;
 	#else
-		float fogEnd = far;	
+		float fogEnd = isEyeInWater >= 1 ? 60.0 : far;	
 	#endif
 
-	float fogStart = (fogEnd-10.0) * FOG_START_MULTIPLIER;
+	float fogStart = isEyeInWater >= 1 ? 20.0 : (fogEnd-10.0) * FOG_START_MULTIPLIER;
 
 	#if defined DISTANT_HORIZONS
 		fogStart *= 0.25;
 	#endif
 
+	vec3 fog = pow(getFogColor(normalizedViewPos), vec3(2.2));
 	float fogAmount = clamp((viewPosLength - fogStart) / (fogEnd - fogStart), 0.0, 1.0);
 
-	color.rgb = mix(color.rgb, sRGB_to_Linear(fogColor), fogAmount * fogAmount);
-
-	//color.rgb = vec3(NMAP);
-	color.rgb = Linear_to_sRGB(color.rgb);
+	color.rgb = mix(color.rgb, fog, fogAmount * fogAmount);
+	//color.rgb = vec3(lm.x);
 
 	#if DRAW_SHADOW_MAP != 0
 		color = texture(DRAWMAP, texcoord);
 	#endif
 	
-	gl_FragData[0] = color;
-	
+	OUTPUT = color;
 }

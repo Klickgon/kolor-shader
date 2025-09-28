@@ -4,8 +4,14 @@
     #define MASK 2.0/15.0
 #endif
 
-#define WATER_COLOR vec4(0.0, 0.65, 0.76, 0.5)
-#define WATER_PBR vec4(1.0, 0.25, 1.0, 1.0)
+#if defined WEATHER || defined TEXTURED
+    #define SAMPLE_SPECULAR vec4(0.0, 0.0, 0.0, 1.0);
+#else
+    #define SAMPLE_SPECULAR vec4(texture(specular, texcoord).rgb, 1.0);
+#endif
+
+#define WATER_COLOR vec4(0.0, 0.37, 0.25, 0.84)
+#define WATER_PBR vec4(1.0, 0.89, 1.0, 1.0)
 
 uniform sampler2D texture;
 uniform sampler2D depthtex0;
@@ -29,7 +35,7 @@ uniform float frameTimeCounter;
 varying vec2 lmcoord;
 varying vec2 texcoord;
 varying vec4 glcolor;
-varying vec3 normal;
+varying vec3 vertexNormal;
 
 #ifdef NORMAL_MAPPING && !defined(DH)
     varying vec3 tangent;
@@ -46,11 +52,18 @@ varying vec3 viewPos;
 varying float viewPosLength;
 varying float vanillaAO;
 
+#if defined PHYSICS_MOD && defined WATER
+    #include "/lib/oceans.glsl"
+
+	varying vec3 physics_localPosition;
+	varying float physics_localWaviness;
+#endif
+
 float getNoise(vec2 coord){
   return mod(52.9829189 * mod(0.06711056*coord.x + 0.00583715*coord.y, 1.0), 1.0);
 }
 
-#if defined SHADER_WATER && defined WATER
+#if defined SHADER_WATER && defined WATER && !defined PHYSICS_MOD
     #include "/lib/noise.glsl"
 
     vec3 getWaveNormal(vec3 worldPos){
@@ -64,7 +77,8 @@ float getNoise(vec2 coord){
     }
 #endif
 
-/* RENDERTARGETS: 0,1,2,3,4,5 */
+/* RENDERTARGETS: 7,1,2,3,4,5 */
+layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 lightmapData;
 layout(location = 2) out vec4 encodedNormal;
 layout(location = 3) out vec4 encodedNormalMap;
@@ -78,7 +92,7 @@ void main() {
             vec2 fragCoord = gl_FragCoord.xy / vec2(viewWidth, viewHeight);
             if(texture(depthtex0, fragCoord).r < 1.0) discard;
         #else
-            if(max((viewPosLength - far * 0.95) * 0.2, 0.0) > getNoise(gl_FragCoord.xy)) discard;
+            if(max((viewPosLength - far * 0.95) * 0.05, 0.0) > getNoise(gl_FragCoord.xy)) discard;
         #endif
     #endif
 
@@ -95,63 +109,68 @@ void main() {
         if(!isWater){
     #endif
         precolor = texture(texture, texcoord);
-        
         if(precolor.a < 0.1) discard;
         #if defined DH
             precolor.a = 0.9;
         #endif
-        precolor.rgb = pow(pow(precolor.rgb, vec3(2.2)) * pow(glcolor.rgb, vec3(2.2)), vec3(1.0/2.2));
+        precolor.rgb = pow(precolor.rgb, vec3(2.2)) * pow(glcolor.rgb, vec3(2.2));
     #if defined SHADER_WATER && defined WATER
         }
         else {
             precolor = WATER_COLOR;
-            precolor.rgb = mix(pow(precolor.rgb, vec3(2.2)), pow(glcolor.rgb, vec3(2.2)), 0.2);
-            precolor.rgb = pow(precolor.rgb, vec3(1.0/2.2));
+            precolor.rgb = mix(pow(precolor.rgb, vec3(2.2)), pow(glcolor.rgb, vec3(2.2)), 0.1);
         }
     #endif
 
-    #if defined NORMAL_MAPPING
-        vec3 normalMaps = normal;
-        #if !defined(DH) || defined SHADER_WATER
-            vec3 playerPos = (gl_ModelViewMatrixInverse * vec4(viewPos, 1.0)).xyz;
-            vec3 worldPos = playerPos + cameraPosition;
-            mat3 tbn = mat3(tangent, bitangent, normal);
-            #if defined SHADER_WATER && defined WATER
-                #if !defined DH
-                    normalMaps = isWater ? getWaveNormal(worldPos) : texture(normals, texcoord).rgb;
-                #else
-                    bool facesUp = dot((gl_ModelViewMatrixInverse * vec4(normal, 1.0)).xyz, vec3(0.0, 1.0, 0.0)) >= 0.99;
-                    //precolor.xyz = vec3(facesUp);
-                    normalMaps = (isWater && facesUp) ? getWaveNormal(worldPos) : vec3(0.5, 0.5, 1.0);
-                #endif
-            #else
-                normalMaps = texture(normals, texcoord).rgb;
+    vec3 normal = vertexNormal;
+    #if defined PHYSICS_MOD && defined WATER
+        WavePixelData physics_waveData = physics_wavePixel(physics_localPosition.xz, physics_localWaviness, physics_iterationsNormal, physics_gameTime);
+        vec3 physicsNormals = normalize(gl_NormalMatrix * physics_waveData.normal);
+        normal = physicsNormals;
+        vec3 normalMaps = physicsNormals;
+        precolor = mix(precolor, vec4(vec3(2.2), 1.0), physics_waveData.foam);
+    #else
+        #ifdef NORMAL_MAPPING
+            vec3 normalMaps = normal;
+            #if !defined(DH) || defined SHADER_WATER
+                vec3 playerPos = (gl_ModelViewMatrixInverse * vec4(viewPos, 1.0)).xyz;
+                vec3 worldPos = playerPos + cameraPosition;
+                mat3 tbn = mat3(tangent, bitangent, normal);
+                    #if defined SHADER_WATER && defined WATER
+                        #if !defined DH
+                            normalMaps = isWater ? getWaveNormal(worldPos) : texture(normals, texcoord).rgb;
+                        #else
+                            bool facesUp = dot((gl_ModelViewMatrixInverse * vec4(normal, 1.0)).xyz, vec3(0.0, 1.0, 0.0)) >= 0.99;
+                            normalMaps = (isWater && facesUp) ? getWaveNormal(worldPos) : vec3(0.5, 0.5, 1.0);
+                        #endif
+                    #else
+                        normalMaps = texture(normals, texcoord).rgb;
+                    #endif
+                normalMaps.z = sqrt(1.0 - dot(normalMaps.xy, normalMaps.xy));
+                normalMaps = mix(vec3(0.5, 0.5, 1.0), normalMaps, NORMAL_MAP_STRENGTH);
+                normalMaps = normalMaps * 2.0 - 1.0;
+                normalMaps = normalize(tbn * normalMaps);
             #endif
-            normalMaps.z = sqrt(1.0 - dot(normalMaps.xy, normalMaps.xy));
-            normalMaps = mix(vec3(0.5, 0.5, 1.0), normalMaps, NORMAL_MAP_STRENGTH);
-            normalMaps = normalMaps * 2.0 - 1.0;   
-            normalMaps = normalize(tbn * normalMaps);
         #endif
     #endif
-    
-    gl_FragData[0] = precolor;
 
+    outColor = precolor;
     lightmapData = vec4(lmcoord, vertexLightDot, 1.0);
     encodedNormal = vec4(normal * 0.5 + 0.5, 1.0);
     
     #ifdef NORMAL_MAPPING
-            encodedNormalMap = vec4(normalMaps * 0.5 + 0.5, 1.0);
+        encodedNormalMap = vec4(normalMaps * 0.5 + 0.5, 1.0);
     #endif
     #if !defined DH
         #if defined SHADER_WATER && defined WATER
             #if SPECULAR_MAPPING == 2
-                specularMap = isWater ? WATER_PBR : texture(specular, texcoord);
+                specularMap = isWater ? WATER_PBR : SAMPLE_SPECULAR;
             #elif SPECULAR_MAPPING == 1
                 specularMap = isWater ? WATER_PBR : vec4(0.75, 0.0, 1.0, 1.0);
             #endif
         #else
             #if SPECULAR_MAPPING == 2
-                specularMap = texture(specular, texcoord);
+                specularMap = SAMPLE_SPECULAR;
             #elif SPECULAR_MAPPING == 1
                 specularMap = vec4(0.75, 0.0, 1.0, 1.0);
             #endif

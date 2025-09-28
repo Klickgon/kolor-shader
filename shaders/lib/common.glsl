@@ -1,5 +1,5 @@
 #define PI 3.1415926535897932384626433832795
-#define BLOCKLIGHT (vec3(0.66, 0.34, 0.15) * 3.0)
+#define BLOCKLIGHT (vec3(1.0, 0.37, 0.05) * 2.0)
 
 #define SUNCOLOR_MORNING (vec3(1.0, 0.591, 0.309) * 13.0)
 #define SUNCOLOR_NOON (vec3(1.0, 0.67, 0.408) * 9.0)
@@ -8,6 +8,9 @@
 #define MOONCOLOR_EARLY (vec3(0.901, 0.929, 1.0) * 0.1)
 #define MOONCOLOR_MIDNIGHT (vec3(0.822 , 0.871, 1.0) * 11.0)
 #define MOONCOLOR_LATE (vec3(0.901, 0.929, 1.0) * 3.0)
+
+#define WATER_COLOR vec4(0.0, 0.32, 0.21, 0.50)
+#define WATER_PBR vec4(1.0, 0.89, 1.0, 1.0)
 
 #define MASK_SOLID 0.0
 #define DH_MASK_SOLID 1.0/15.0

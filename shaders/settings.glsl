@@ -20,6 +20,16 @@
 #define SPECULAR_MAPPING 2 //[0 1 2]
 #define SPECULAR_LIGHT_QUALITY 2 //[1 2]
 #define SHADER_WATER
+#define REFLECTIONS
+
+/*
+const int colortex0Format = RGBA16F;
+const int colortex7Format = RGBA16F;
+const int colortex2Format = RGB16;
+const int colortex3Format = RGB16;
+const bool colortex0MipmapEnabled = true;
+const bool colortex7MipmapEnabled = true;
+*/
 
 const float ambientOcclusionLevel = 1.0;
 

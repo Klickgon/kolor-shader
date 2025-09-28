@@ -8,7 +8,6 @@
 	attribute vec4 at_tangent;	
 #endif
 
-
 uniform mat4 gbufferModelView;
 uniform mat4 gbufferModelViewInverse;
 uniform mat4 shadowModelView;
@@ -22,7 +21,7 @@ varying vec2 mc_midTexCoord;
 varying vec2 lmcoord;
 varying vec2 texcoord;
 varying vec4 glcolor;
-varying vec3 normal;
+varying vec3 vertexNormal;
 
 #ifdef NORMAL_MAPPING
     varying vec3 tangent;
@@ -39,18 +38,27 @@ varying vec3 viewPos;
 varying float viewPosLength;
 varying float vanillaAO;
 
+
+#if defined PHYSICS_MOD && defined WATER
+	#include "/lib/oceans.glsl"
+	
+	varying vec3 physics_localPosition;
+	varying float physics_localWaviness;
+#endif
+
 #include "/lib/vertex_manipulation.glsl"
 
 void main() {
+	
 	texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
 	lmcoord  = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
 	glcolor = gl_Color;
 	vanillaAO = glcolor.a;
 	lmcoord = lmcoord / (30.0 / 32.0) - (1.0 / 32.0);
 	#if defined TEXTURED
-		normal = vec3(0.0, 0.0, 1.0);
-	#else
-		normal = gl_NormalMatrix * gl_Normal;
+		vertexNormal = vec3(0.0, 0.0, 1.0);
+	#else 
+		vertexNormal = normalize(gl_NormalMatrix * gl_Normal);
 	#endif
 
 	#if !defined DH
@@ -65,24 +73,31 @@ void main() {
 		bool lightPassthrough = mc_Entity.x == 10601.0 || mc_Entity.x == 12412.0;
 	#endif
 
-	vertexLightDot = lightPassthrough ? 1.0 : dot(normal, normalize(shadowLightPosition)) * (1.0-(1.0/16.0));
+	vertexLightDot = lightPassthrough ? 1.0 : dot(vertexNormal, normalize(shadowLightPosition)) * (1.0-(1.0/16.0));
 	#ifdef NORMAL_MAPPING
 		#if !defined DH
 			tangent = gl_NormalMatrix * at_tangent.xyz;
-			bitangent = cross(tangent, normal) * at_tangent.w;
+			bitangent = cross(tangent, vertexNormal) * at_tangent.w;
 		#else
 			tangent = vec3(0.0, 0.0, 1.0);
 			bitangent = vec3(1.0, 0.0, 0.0);
 		#endif
 	#endif
 	
-	viewPos = (gl_ModelViewMatrix * gl_Vertex).xyz;
-	#if defined WATER && !defined DH
-		if(mc_Entity.x == 2.0){
-			vec3 playerPos = (gl_ModelViewMatrixInverse * vec4(viewPos, 1.0)).xyz;
-			vec3 worldPos = playerPos + cameraPosition;
-			viewPos = (gl_ModelViewMatrix * vec4(applyWaveEffect(worldPos) - cameraPosition, 1.0)).xyz;
-		}
+	#if defined PHYSICS_MOD && defined WATER
+		physics_localWaviness = texelFetch(physics_waviness, ivec2(gl_Vertex.xz) - physics_textureOffset, 0).r;
+		vec4 finalPosition = vec4(gl_Vertex.x, gl_Vertex.y + physics_waveHeight(gl_Vertex.xz, PHYSICS_ITERATIONS_OFFSET, physics_localWaviness, physics_gameTime), gl_Vertex.z, gl_Vertex.w);
+		physics_localPosition = finalPosition.xyz;
+		viewPos = (gl_ModelViewMatrix * finalPosition).xyz;
+	#else
+		viewPos = (gl_ModelViewMatrix * gl_Vertex).xyz;
+		#if defined WATER && !defined DH
+			if(mc_Entity.x == 2.0){
+				vec3 playerPos = (gl_ModelViewMatrixInverse * vec4(viewPos, 1.0)).xyz;
+				vec3 worldPos = playerPos + cameraPosition;
+				viewPos = (gl_ModelViewMatrix * vec4(applyWaveEffect(worldPos) - cameraPosition, 1.0)).xyz;
+			}
+		#endif
 	#endif
 	viewPosLength = length(viewPos);
 	

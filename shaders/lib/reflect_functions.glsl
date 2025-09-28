@@ -1,11 +1,3 @@
-float fogify(float x, float w) {
-	return w / (x * x + w);
-}
-
-vec3 calcSkyColor(vec3 pos) {
-	float upDot = dot(pos, gbufferModelView[1].xyz);
-	return mix(skyColor, fogColor, fogify(max(upDot, 0.0), 0.25));
-}
 
 float getSpecularHighlight(vec3 viewPos, float lightDot, float roughness){
     vec3 reflectionDirection = reflect(-normalizedShadowLightPos, NMAP);
@@ -55,6 +47,15 @@ vec3 brdf(vec3 lightDir, vec3 viewDir, float roughness, vec3 normal, vec3 albedo
     return BRDF;
 }
 
+/*float fogify(float x, float w) {
+	return w / (x * x + w);
+}
+
+vec3 calcSkyColor(vec3 pos) {
+	float upDot = dot(pos, gbufferModelView[1].xyz);
+	return mix(skyColor, isEyeInWater == 1 ? Linear_to_sRGB(WATER_COLOR.rgb) : fogColor, fogify(max(upDot, 0.0), 0.25));
+}*/
+
 #ifdef SCREEN_SPACE_REFLECTIONS
     #if !defined DISTANT_HORIZONS
         #define MAX_SSR_STEPS 400
@@ -81,52 +82,39 @@ vec3 brdf(vec3 lightDir, vec3 viewDir, float roughness, vec3 normal, vec3 albedo
                 ssRayPos = projectAndDivide(gbufferProjection, ray) * 0.5 + 0.5; 
                 if(ssRayPos.x < 0.0 || ssRayPos.x > 1.0 || ssRayPos.y < 0.0 || ssRayPos.y > 1.0 || ssRayPos.z < 0.0) return color;
                 depthDelta = linearizeDepth(ssRayPos.z) - linearizeDepth(sampleDepthWithHandFix(depthtex1, ssRayPos.xy));
-                if(depthDelta > -0.1 && depthDelta < 0.46) textureLod(CTEX1, ssRayPos.xy, (float(i) / float(steps)) * 15.0 * roughness).rgb;
+                if(depthDelta > -0.1 && depthDelta < 0.46) textureLod(colortex0, ssRayPos.xy, (float(i) / float(steps)) * 15.0 * roughness).rgb;
             }
-            return depthDelta < 0.0 ? textureLod(CTEX1, pixelEnd / screenResolution, 15.0 * roughness).rgb : color;
+            return depthDelta < 0.0 ? textureLod(colortex0, pixelEnd / screenResolution, 15.0 * roughness).rgb : color;
             //return color;
         }
     #else
-        #define MAX_SSR_STEPS 500
+        #define MAX_SSR_STEPS 250
         vec3 screenSpaceReflections(vec3 color, vec3 pixelViewPos, vec3 reflectionDirection, float roughness, bool isDH){
-            const float rayLength = 250.0;
-            const int minssrresolution = 20;
-            
+            reflectionDirection *= 0.005;
+            const float rayLength = 1.32 * ((MAX_SSR_STEPS.0 * (MAX_SSR_STEPS.0 + 1.0)) / 2.0);
             vec2 screenResolution = vec2(viewWidth, viewHeight);
-            vec2 pixelStart = (projectAndDivide(gbufferProjection, pixelViewPos) * 0.5 + 0.5).xy * screenResolution;
             vec3 rayDirection = reflectionDirection * rayLength;
 
-            vec2 pixelEnd = (projectAndDivide(gbufferProjection, pixelViewPos + rayDirection) * 0.5 + 0.5).xy;
-            pixelEnd = clamp(pixelEnd, vec2(0.0), vec2(1.0)) * screenResolution;
+            vec2 pixelEnd = clamp((projectAndDivide(gbufferProjection, pixelViewPos + rayDirection) * 0.5 + 0.5).xy, 0.0, 1.0) * screenResolution;
 
-            vec2 deltas = pixelEnd - pixelStart;
-            int pixelCoverage = max(int(max(abs(deltas.x), abs(deltas.y)) * minssrresolution), 1);
-
-            int steps = min(pixelCoverage, MAX_SSR_STEPS);
 
             vec3 ray = pixelViewPos;
-            vec3 rayStep = rayDirection / steps;
+            vec3 rayStep = reflectionDirection * 1.32;
             vec3 ssRayPos;
             float depthDelta;
-            
-            for(int i = 0; i < steps; i++){
-                ray += rayStep;
+
+            for(int i = 1; i <= MAX_SSR_STEPS; i++){
+                float ifloat = float(i);
+                ray += rayStep * ifloat;
                 ssRayPos = projectAndDivide(gbufferProjection, ray) * 0.5 + 0.5; 
-                if(ssRayPos.x < 0.0 || ssRayPos.x > 1.0 || ssRayPos.y < 0.0 || ssRayPos.y > 1.0 || ssRayPos.z < 0.0) return color;
+                if(ssRayPos.x < 0.0 || ssRayPos.x > 1.0 || ssRayPos.y < 0.0 || ssRayPos.y > 1.0 || ssRayPos.z < -0.1) return color;
                 float mask = texture(ETEX5, ssRayPos.xy).r;
-                if(mask == DH_MASK_SOLID || mask == DH_MASK_TRANSLUCENT){
-                    depthDelta = linearizeDepth(ssRayPos.z) - linearizeDepthDH(texture(dhDepthTex1, ssRayPos.xy).r);
-                    if(depthDelta > -0.3 && depthDelta < 1.42){
-                        return sRGB_to_Linear(textureLod(CTEX1, ssRayPos.xy, (float(i) / float(steps)) * 15.0 * roughness).rgb);
-                    }
-                } else{
-                    depthDelta = linearizeDepth(ssRayPos.z) - linearizeDepth(sampleDepthWithHandFix(depthtex1, ssRayPos.xy));
-                    if(depthDelta > -0.1 && depthDelta < 0.76){
-                        return sRGB_to_Linear(textureLod(CTEX1, ssRayPos.xy, (float(i) / float(steps)) * 15.0 * roughness).rgb);
-                    }
-                }
+                if(mask == DH_MASK_SOLID || mask == DH_MASK_TRANSLUCENT) depthDelta = linearizeDepth(ssRayPos.z) - linearizeDepthDH(texture(dhDepthTex1, ssRayPos.xy).r);
+                else depthDelta = linearizeDepth(ssRayPos.z) - linearizeDepth(sampleDepthWithHandFix(depthtex1, ssRayPos.xy));
+
+                if(depthDelta > 0.01 && depthDelta < (0.06 + i * 0.03)) return textureLod(colortex0, ssRayPos.xy, (1.32 * ((ifloat * (ifloat + 1.0)) / 2.0) / rayLength) * 15.0 * roughness).rgb;
             }
-            return depthDelta < 0.0 ? sRGB_to_Linear(textureLod(CTEX1, pixelEnd / screenResolution, 15.0 * roughness).rgb) : color;
+            return depthDelta < 0.0 ? textureLod(colortex0, pixelEnd / screenResolution, 15.0 * roughness).rgb : color;
         }
     #endif
 #endif

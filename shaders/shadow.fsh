@@ -16,7 +16,7 @@ flat varying float blockEntity;
 varying vec3 worldPos;
 
 #if defined SHADER_WATER && COLORED_SHADOWS == 1
-	#define WATER_COLOR vec4(0.0, 0.65, 0.76, 0.95)
+	#define WATER_COLOR vec4(0.0, 0.65, 0.76, 0.9)
 
     #include "/lib/noise.glsl"
 

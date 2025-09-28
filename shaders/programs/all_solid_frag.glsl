@@ -26,13 +26,12 @@ uniform int entityId;
 varying vec2 lmcoord;
 varying vec2 texcoord;
 varying vec4 glcolor;
-varying vec3 normal;
+varying vec3 vertexNormal;
 
 #if defined NORMAL_MAPPING && !defined(DH)
     varying vec3 tangent;
     varying vec3 bitangent;
 #endif
-
 
 varying float vertexLightDot;
 varying float viewPosLength;
@@ -43,6 +42,7 @@ float getNoise(vec2 coord){
 }
 
 /* RENDERTARGETS: 0,1,2,3,4,5 */
+layout(location = 0) out vec4 outColor;
 layout(location = 1) out vec4 lightmapData;
 layout(location = 2) out vec4 encodedNormal;
 layout(location = 3) out vec4 encodedNormalMap;
@@ -56,17 +56,20 @@ void main() {
             vec2 fragCoord = gl_FragCoord.xy / vec2(viewWidth, viewHeight);
             if(texture(depthtex0, fragCoord).r < 1.0) discard;
         #else
-            if(max((viewPosLength - far * 0.95) * 0.2, 0.0) > getNoise(gl_FragCoord.xy)) discard;
+            if(max((viewPosLength - far * 0.95) * 0.05, 0.0) > getNoise(gl_FragCoord.xy)) discard;
         #endif
     #endif
     
     vec4 precolor = texture(gtexture, texcoord);
     if (precolor.a < 0.1) discard;
+
+    precolor.rgb = pow(precolor.rgb, vec3(2.2)) * pow(glcolor.rgb, vec3(2.2));
+    outColor = precolor;
     
     #ifdef NORMAL_MAPPING
-        vec3 normalMaps = normal;
+        vec3 normalMaps = vertexNormal;
         #if !defined(DH)
-            mat3 tbn = mat3(tangent, bitangent, normal);
+            mat3 tbn = mat3(tangent, bitangent, vertexNormal);
             normalMaps = texture(normals, texcoord).rgb;
             normalMaps.z = sqrt(1.0 - dot(normalMaps.xy, normalMaps.xy));
             normalMaps = mix(vec3(0.5, 0.5, 1.0), normalMaps, NORMAL_MAP_STRENGTH);
@@ -74,12 +77,10 @@ void main() {
             normalMaps = normalize(tbn * normalMaps);
         #endif
     #endif
-    
-    precolor.rgb = pow(pow(precolor.rgb, vec3(2.2)) * pow(glcolor.rgb, vec3(2.2)), vec3(1.0/2.2));
-    gl_FragData[0] = precolor;
+
 
     lightmapData = vec4(lmcoord, vertexLightDot, 1.0);
-    encodedNormal = vec4(normal * 0.5 + 0.5, 1.0);
+    encodedNormal = vec4(vertexNormal * 0.5 + 0.5, 1.0);
     #ifdef NORMAL_MAPPING
         encodedNormalMap = vec4(normalMaps * 0.5 + 0.5, 1.0);
     #endif 
