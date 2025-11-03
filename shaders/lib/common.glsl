@@ -1,15 +1,15 @@
 #define PI 3.1415926535897932384626433832795
-#define BLOCKLIGHT (vec3(1.0, 0.37, 0.05) * 2.0)
+#define BLOCKLIGHT (vec3(1.0, 0.27, 0.05) * 2.0)
 
-#define SUNCOLOR_MORNING (vec3(1.0, 0.591, 0.309) * 13.0)
-#define SUNCOLOR_NOON (vec3(1.0, 0.67, 0.408) * 9.0)
-#define SUNCOLOR_EVENING (vec3(1.0, 0.337, 0.056) * 25.0)
+#define SUNCOLOR_MORNING (vec3(1.0, 0.591, 0.309) * 20.0)
+#define SUNCOLOR_NOON (vec3(1.0, 0.67, 0.408) * 8.0)
+#define SUNCOLOR_EVENING (vec3(1.0, 0.337, 0.056) * 12.0)
 
-#define MOONCOLOR_EARLY (vec3(0.901, 0.929, 1.0) * 0.1)
-#define MOONCOLOR_MIDNIGHT (vec3(0.822 , 0.871, 1.0) * 11.0)
+#define MOONCOLOR_EARLY (vec3(0.901, 0.929, 1.0) * 3.0)
+#define MOONCOLOR_MIDNIGHT (vec3(0.822 , 0.871, 1.0) * 3.0)
 #define MOONCOLOR_LATE (vec3(0.901, 0.929, 1.0) * 3.0)
 
-#define WATER_COLOR vec4(0.0, 0.32, 0.21, 0.50)
+#define WATER_COLOR vec4(0.0, 0.44, 0.27, 0.50)
 #define WATER_PBR vec4(1.0, 0.89, 1.0, 1.0)
 
 #define MASK_SOLID 0.0
@@ -19,8 +19,8 @@
 #define HAND_MASK_SOLID 4.0/15.0
 #define HAND_MASK_TRANSLUCENT 5.0/15.0
 
-float getLightIntensity(float x){
-	return 0.10 * sin(x * PI) + 1.0;
+float getLightIntensity(){
+	return sin(sunAngle * PI * 2) * 0.5 + 0.5;
 }
 
 mat2 getRotationMat2(float noise){

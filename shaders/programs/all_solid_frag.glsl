@@ -1,4 +1,4 @@
-#include "/settings.glsl"
+#include "/./settings.glsl"
 
 #if !defined MASK
     #define MASK 0.0
@@ -12,9 +12,9 @@ uniform float viewWidth;
 uniform float viewHeight;
 uniform float far;
 uniform int entityId;
+uniform float frameTime;
 
 #if !defined DH
-    
     #ifdef NORMAL_MAPPING
         uniform sampler2D normals;
     #endif

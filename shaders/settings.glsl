@@ -20,7 +20,7 @@
 #define SPECULAR_MAPPING 2 //[0 1 2]
 #define SPECULAR_LIGHT_QUALITY 2 //[1 2]
 #define SHADER_WATER
-#define REFLECTIONS
+#define WATER_GEOMETRY_WAVES
 
 /*
 const int colortex0Format = RGBA16F;

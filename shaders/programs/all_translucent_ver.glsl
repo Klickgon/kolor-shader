@@ -1,4 +1,4 @@
-#include "/settings.glsl"
+#include "/./settings.glsl"
 
 #if !defined DH
 	attribute vec4 mc_Entity;
@@ -40,16 +40,15 @@ varying float vanillaAO;
 
 
 #if defined PHYSICS_MOD && defined WATER
-	#include "/lib/oceans.glsl"
+	#include "/./lib/oceans.glsl"
 	
 	varying vec3 physics_localPosition;
 	varying float physics_localWaviness;
 #endif
 
-#include "/lib/vertex_manipulation.glsl"
+#include "/./lib/vertex_manipulation.glsl"
 
 void main() {
-	
 	texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
 	lmcoord  = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
 	glcolor = gl_Color;
@@ -57,18 +56,20 @@ void main() {
 	lmcoord = lmcoord / (30.0 / 32.0) - (1.0 / 32.0);
 	#if defined TEXTURED
 		vertexNormal = vec3(0.0, 0.0, 1.0);
-	#else 
+	#else
 		vertexNormal = normalize(gl_NormalMatrix * gl_Normal);
 	#endif
 
 	#if !defined DH
 		blockEntity = mc_Entity;
-	#else 
+	#else
 		dhID = dhMaterialId;
 	#endif
 	
-	#if defined WEATHER || defined DH
+	#if defined WEATHER
 		const bool lightPassthrough = true;
+	#elif defined DH
+		const bool lightPassthrough = false;
 	#else
 		bool lightPassthrough = mc_Entity.x == 10601.0 || mc_Entity.x == 12412.0;
 	#endif
@@ -91,12 +92,14 @@ void main() {
 		viewPos = (gl_ModelViewMatrix * finalPosition).xyz;
 	#else
 		viewPos = (gl_ModelViewMatrix * gl_Vertex).xyz;
-		#if defined WATER && !defined DH
-			if(mc_Entity.x == 2.0){
-				vec3 playerPos = (gl_ModelViewMatrixInverse * vec4(viewPos, 1.0)).xyz;
-				vec3 worldPos = playerPos + cameraPosition;
-				viewPos = (gl_ModelViewMatrix * vec4(applyWaveEffect(worldPos) - cameraPosition, 1.0)).xyz;
-			}
+		#ifdef WATER_GEOMETRY_WAVES
+			#if defined WATER && !defined DH
+				if(mc_Entity.x == 2.0){
+					vec3 playerPos = (gl_ModelViewMatrixInverse * vec4(viewPos, 1.0)).xyz;
+					vec3 worldPos = playerPos + cameraPosition;
+					viewPos = (gl_ModelViewMatrix * vec4(applyWaveEffect(worldPos) - cameraPosition, 1.0)).xyz;
+				}
+			#endif
 		#endif
 	#endif
 	viewPosLength = length(viewPos);

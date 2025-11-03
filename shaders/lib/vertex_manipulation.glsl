@@ -7,6 +7,6 @@ vec3 applyWindEffect(vec3 worldPos){
 }
 
 vec3 applyWaveEffect(vec3 worldPos){
-	worldPos.y += sin((frameTimeCounter * 2.7) + 4 + worldPos.x) * 0.02 + sin((frameTimeCounter * 3.1) + 12 + worldPos.z) * 0.01 - 0.007;
+	worldPos.y += (sin((frameTimeCounter * 2.7) + 4 + worldPos.x) * 0.02 + sin((frameTimeCounter * 3.1) + 12 + worldPos.z) * 0.01 - 0.007) * lmcoord.y;
 	return worldPos;
 }

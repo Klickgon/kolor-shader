@@ -27,7 +27,7 @@
             pixelViewPos += rayStep;
             vec3 ssPos = projectAndDivide(gbufferProjection, pixelViewPos) * 0.5 + 0.5;
             if(ssPos.x < 0.0 || ssPos.x > 1.0 || ssPos.y < 0.0 || ssPos.y > 1.0) return false;
-            float delta = linearizeDepth(ssPos.z) - linearizeDepth(texture(depthtex0, ssPos.xy).r) - bias;
+            float delta = linearizeDepth(ssPos.z) - linearizeDepth(sampleDepthWithHandFix(depthtex0, ssPos.xy)) - bias;
             if(delta > 0.01 && delta < 0.08) return true;
         }
         return false;
@@ -61,11 +61,11 @@
         float blockerDepth = 0.0;
         float blockerCount = 0.0;
         mat2 rotation = getRotationMat2(noise);
-
+        float noise2 = getNoise(texcoord + 0.05);
         #if SHADOW_FILTER_QUALITY == 0
             vec2 randOffset = vec2(0.0); 
         #else
-            vec2 randOffset = (vec2(noise, 1-noise) - 0.5) * 0.5;
+            vec2 randOffset = (vec2(noise, noise2) - 0.5) * 0.5;
         #endif
 
         vec2 penumPattern[13] = vec2[](vec2(0.0), vec2(1.0223, 1.0341), vec2(-1.045, -1.012), vec2(1.0123, -1.0312), vec2(-1.053, 1.0512), vec2(0.25412, 0.45124), vec2(-0.25126, -0.45521), vec2(0.45521, -0.255212), vec2(-0.45521, 0.255521), vec2(-1.26132, 0.0621), vec2(1.2412, 0.0421), vec2(0.0642, -1.2521), vec2(0.0212, 1.24421));
@@ -87,6 +87,7 @@
 #if COLORED_SHADOWS == 0
     float filteredShadow(vec3 shadowPos, float samplingSpacing){
         float color = 0.0;
+        float noise2 = getNoise(texcoord + 0.05);
         vec2 pattern[SAMPLING_PATTERN_LENGTH] = SAMPLING_PATTERN;
         mat2 rotation = getRotationMat2(noise); // matrix to rotate the offset around the original position by the angle
         #ifdef PENUMBRA_SHADOWS
@@ -96,7 +97,7 @@
         #if SHADOW_FILTER_QUALITY == 0
             vec2 randOffset = vec2(0.0); 
         #else
-            vec2 randOffset = (vec2(noise, 1-noise) - 0.5) * 0.5;
+            vec2 randOffset = (vec2(noise, noise2) - 0.5) * 0.5;
         #endif
         for(int i = 0; i < SAMPLING_PATTERN_LENGTH; i++){
             vec2 samplePos = shadowPos.xy + ((pattern[i] + randOffset) * rotation * samplingSpacing / 4096.0);
@@ -106,6 +107,7 @@
     }
 #elif COLORED_SHADOWS == 1
         vec4 filteredShadow(vec3 shadowPos, float samplingSpacing, float intensitysky){
+            float noise2 = getNoise(texcoord + 0.05);
             vec4 color = vec4(0.0);
             vec2 pattern[SAMPLING_PATTERN_LENGTH] = SAMPLING_PATTERN;
             mat2 rotation = getRotationMat2(noise); // matrix to rotate the offset around the original position by the angle
@@ -115,7 +117,7 @@
             #if SHADOW_FILTER_QUALITY == 0
                 vec2 randOffset = vec2(0.0); 
             #else
-                vec2 randOffset = (vec2(noise, 1-noise) - 0.5) * 0.5;
+                vec2 randOffset = (vec2(noise, noise2) - 0.5) * 0.5;
             #endif
             int lightMix = 0;
             float tintsamples = 0.0;
@@ -148,7 +150,7 @@
         }
 #else 
     float filteredShadow(vec3 shadowPos, float samplingSpacing){
-        float noise = getNoise(texcoord);
+        float noise2 = getNoise(texcoord + 0.05);
         float color = 0.0;
         vec2 pattern[SAMPLING_PATTERN_LENGTH] = SAMPLING_PATTERN;
         mat2 rotation = getRotationMat2(noise); // matrix to rotate the offset around the original position by the angle
@@ -159,7 +161,7 @@
         #if SHADOW_FILTER_QUALITY == 0
             const vec2 randOffset = vec2(0.0); 
         #else
-            vec2 randOffset = (vec2(noise, 1-noise) - 0.5) * 0.5;
+            vec2 randOffset = (vec2(noise, noise2) - 0.5) * 0.5;
         #endif
         for(int i = 0; i < SAMPLING_PATTERN_LENGTH; i++){
             vec2 samplePos = shadowPos.xy + ((pattern[i] + randOffset) * rotation * samplingSpacing / shadowMapResolution);

@@ -1,4 +1,4 @@
-#include "/settings.glsl"
+#include "/./settings.glsl"
 
 attribute vec4 mc_Entity;
 
@@ -30,7 +30,7 @@ varying float vertexLightDot;
 varying float viewPosLength;
 varying float vanillaAO;
 
-#include "/lib/vertex_manipulation.glsl"
+#include "/./lib/vertex_manipulation.glsl"
 
 void main() {
 	texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;

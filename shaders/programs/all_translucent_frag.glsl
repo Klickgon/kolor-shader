@@ -1,4 +1,4 @@
-#include "/settings.glsl"
+#include "/./settings.glsl"
 
 #if !defined MASK
     #define MASK 2.0/15.0
@@ -10,8 +10,15 @@
     #define SAMPLE_SPECULAR vec4(texture(specular, texcoord).rgb, 1.0);
 #endif
 
-#define WATER_COLOR vec4(0.0, 0.37, 0.25, 0.84)
-#define WATER_PBR vec4(1.0, 0.89, 1.0, 1.0)
+#define WATER_COLOR vec4(0.0, 0.44, 0.29, 0.78)
+
+#if defined PHYSICS_MOD
+    #define WATER_PBR vec4(mix(vec3(0.95, 0.89, 1.0), vec3(0.2, 0.3, 0.3), physics_waveData.foam), 1.0)
+#else
+    #define WATER_PBR vec4(0.95, 0.89, 1.0, 1.0)
+#endif
+
+uniform mat4 gbufferModelView;
 
 uniform sampler2D texture;
 uniform sampler2D depthtex0;
@@ -53,7 +60,7 @@ varying float viewPosLength;
 varying float vanillaAO;
 
 #if defined PHYSICS_MOD && defined WATER
-    #include "/lib/oceans.glsl"
+    #include "/./lib/oceans.glsl"
 
 	varying vec3 physics_localPosition;
 	varying float physics_localWaviness;
@@ -63,16 +70,17 @@ float getNoise(vec2 coord){
   return mod(52.9829189 * mod(0.06711056*coord.x + 0.00583715*coord.y, 1.0), 1.0);
 }
 
-#if defined SHADER_WATER && defined WATER && !defined PHYSICS_MOD
+#if defined SHADER_WATER && defined WATER
     #include "/lib/noise.glsl"
 
     vec3 getWaveNormal(vec3 worldPos){
         float wave1 = frameTimeCounter * 0.2;
+        const float amplitude = 1.41;
+        const float frequency = 0.43;
         const float wno = 0.01;
-        float h1 = fractalNoise(worldPos.xz * 0.7 + wave1, 1.34,  0.74);
-        float h2 = fractalNoise(worldPos.xz * 0.7 + wave1 + vec2(wno, 0.0), 1.34, 0.74);
-        float h3 = fractalNoise(worldPos.xz * 0.7 + wave1 + vec2(0.0, wno), 1.34,  0.74);
-
+        float h1 = fractalNoise(worldPos.xz * 0.7 + wave1, amplitude, frequency);
+        float h2 = fractalNoise(worldPos.xz * 0.7 + wave1 + vec2(wno, 0.0), amplitude, frequency);
+        float h3 = fractalNoise(worldPos.xz * 0.7 + wave1 + vec2(0.0, wno), amplitude, frequency);
         return vec3(h2-h1, h3-h1, 1.0) * 0.5 + 0.5;
     }
 #endif
@@ -115,10 +123,16 @@ void main() {
         #endif
         precolor.rgb = pow(precolor.rgb, vec3(2.2)) * pow(glcolor.rgb, vec3(2.2));
     #if defined SHADER_WATER && defined WATER
-        }
-        else {
+        } else {
             precolor = WATER_COLOR;
-            precolor.rgb = mix(pow(precolor.rgb, vec3(2.2)), pow(glcolor.rgb, vec3(2.2)), 0.1);
+            #if defined DH
+                const float glcolormult = 3.0;
+                const float precolormult = 1.3333333333;
+            #else
+                const float glcolormult = 1.0;
+                const float precolormult = 1.0;
+            #endif
+            precolor.rgb = mix(pow(precolor.rgb, vec3(2.2)) * precolormult, pow(glcolor.rgb, vec3(2.2)) * glcolormult, 0.1);
         }
     #endif
 
@@ -127,20 +141,19 @@ void main() {
         WavePixelData physics_waveData = physics_wavePixel(physics_localPosition.xz, physics_localWaviness, physics_iterationsNormal, physics_gameTime);
         vec3 physicsNormals = normalize(gl_NormalMatrix * physics_waveData.normal);
         normal = physicsNormals;
-        vec3 normalMaps = physicsNormals;
+        vec3 normalMaps = normal;
         precolor = mix(precolor, vec4(vec3(2.2), 1.0), physics_waveData.foam);
     #else
         #ifdef NORMAL_MAPPING
             vec3 normalMaps = normal;
             #if !defined(DH) || defined SHADER_WATER
-                vec3 playerPos = (gl_ModelViewMatrixInverse * vec4(viewPos, 1.0)).xyz;
-                vec3 worldPos = playerPos + cameraPosition;
+                vec3 worldPos = (gl_ModelViewMatrixInverse * vec4(viewPos, 1.0)).xyz + cameraPosition;
                 mat3 tbn = mat3(tangent, bitangent, normal);
                     #if defined SHADER_WATER && defined WATER
                         #if !defined DH
                             normalMaps = isWater ? getWaveNormal(worldPos) : texture(normals, texcoord).rgb;
                         #else
-                            bool facesUp = dot((gl_ModelViewMatrixInverse * vec4(normal, 1.0)).xyz, vec3(0.0, 1.0, 0.0)) >= 0.99;
+                            bool facesUp = dot(normal, gbufferModelView[1].xyz) >= 0.99;
                             normalMaps = (isWater && facesUp) ? getWaveNormal(worldPos) : vec3(0.5, 0.5, 1.0);
                         #endif
                     #else
@@ -153,7 +166,7 @@ void main() {
             #endif
         #endif
     #endif
-
+    //precolor.a = 1.0;
     outColor = precolor;
     lightmapData = vec4(lmcoord, vertexLightDot, 1.0);
     encodedNormal = vec4(normal * 0.5 + 0.5, 1.0);
