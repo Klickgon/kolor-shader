@@ -115,7 +115,12 @@ float vanillaAO = extraInfo.g;
 	vec3 normalMaps;
 #endif
 vec3 normalizedShadowLightPos = shadowLightPosition * 0.01;
-vec3 celestialColor = getCelestialColor();
+
+#if defined END
+	const vec3 celestialColor = vec3(0.5, 0.1, 0.5) * 2.0;
+#else
+	vec3 celestialColor = getCelestialColor();
+#endif
 
 float getNoise(vec2 coord){
   vec2 pixel = coord * vec2(viewWidth, viewHeight);
@@ -174,8 +179,18 @@ void main() {
 	
 	if(specularMaps.g > 0.0 || roughness < 1.0) {
 		vec3 reflectionVec = reflect(normalizedViewPos, NMAP);
-		vec3 skyColor = sRGB_to_Linear(calcSkyColor(reflectionVec));
-		vec3 reflectionColor = skyColor * clamp((cameraPosition.y - 45.0) * 0.1 * lmcoord.y, 0.0, 1.0);
+
+		#if defined END
+			const vec3 skyColor = END_SKY_COLOR;
+			vec3 reflectionColor = skyColor;
+		#elif defined NETHER
+			const vec3 skyColor = NETHER_SKY_COLOR;
+			vec3 reflectionColor = skyColor;
+		#else
+			vec3 skyColor = sRGB_to_Linear(calcSkyColor(reflectionVec));
+			vec3 reflectionColor = skyColor * clamp((cameraPosition.y - 45.0) * 0.1 * lmcoord.y, 0.0, 1.0);
+		#endif
+
 		float metallic = float(specularMaps.g * 255.0 > 229.0);
 		float f0 = specularMaps.g * (0.2+0.8*metallic);
 		float smoothness = (1-roughness);

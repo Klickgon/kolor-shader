@@ -121,15 +121,21 @@ vec3 brdf(vec3 lightDir, vec3 viewDir, float roughness, vec3 normal, vec3 albedo
                 float ifloat = float(i);
                 ray += rayStep * ifloat;
                 ssRayPos = projectAndDivide(gbufferProjection, ray) * 0.5 + 0.5;
-                if(ssRayPos.x < 0.0 || ssRayPos.x > 1.0 || ssRayPos.y < 0.0 || ssRayPos.y > 1.0 || ssRayPos.z <= 0.0) return color;
+                if(ssRayPos.x < 0.0 || ssRayPos.x > 1.0 || ssRayPos.y < 0.0 || ssRayPos.y > 1.0) return color;
                 float mask = texture(ETEX5, ssRayPos.xy).r;
 	            bool isHand = mask == HAND_MASK_SOLID || mask == HAND_MASK_TRANSLUCENT;
                 bool isDH = mask == DH_MASK_SOLID || mask == DH_MASK_TRANSLUCENT;
                 depthDelta = linearizeDepth(ssRayPos.z);
-                if(isDH) depthDelta -= linearizeDepthDH(texture(dhDepthTex1, ssRayPos.xy).r);
-                else depthDelta -= linearizeDepth(texture(depthtex1, ssRayPos.xy).r);
+                float depth = 0.0;
+                if(isDH){
+                    depth = 0.0;
+                    depthDelta -= linearizeDepthDH(texture(dhDepthTex1, ssRayPos.xy).r);
+                } else {
+                    depth = texture(depthtex1, ssRayPos.xy).r;
+                    depthDelta -= linearizeDepth(depth);
+                }
+                if(!isDH && depth >= 1.0 && ssRayPos.z >= 1.0) continue;
                 float rayprogress = (1.32 * ((ifloat * (ifloat + 1.0)) / 2.0) / rayLength);
-                //if(depthDelta > 0.00 && depthDelta < (0.01 + ifloat * deltaMult)) return mix(textureLod(colortex0, ssRayPos.xy, min(pow(rayprogress * 50.0 * roughness + 0.5, 1.0+roughness), LOD_LIMIT)).rgb, color, pow((ifloat / float(steps)), 16.0) * float(!isHand));
                 if(depthDelta > 0.00 && depthDelta < (0.01 + ifloat * deltaMult)) return mix(brdfSSRColorSample(ssRayPos, pixelViewPos, rayLength, rayprogress, roughness, normal, reflectance), color, isHand ? 1.0 : pow((ifloat / float(steps)), 16.0));
             }
             return depthDelta < 0.0 ? sky : color;

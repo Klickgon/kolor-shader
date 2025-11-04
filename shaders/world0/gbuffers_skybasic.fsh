@@ -38,7 +38,6 @@ void main() {
 	}
 
 	color.rgb = pow(color.rgb, vec3(2.2));
-	//color.rgb = vec3(clamp(((worldTime % 24000) - 22500) * 0.001, 0.0, 1.0));
 	gl_FragData[0] = vec4(color, 1.0); //gcolor
 	extraInfo = vec4(1.0, 0.0, 0.0, 1.0);
 }
