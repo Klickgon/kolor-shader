@@ -89,6 +89,8 @@ uniform vec3 eyePosition;
 uniform vec3 cameraPosition;
 uniform float viewWidth;
 uniform float viewHeight;
+uniform float wetness;
+uniform float screenBrightness;
 
 #if defined DISTANT_HORIZONS
 	uniform int dhRenderDistance;
@@ -104,13 +106,14 @@ varying vec2 texcoord;
 
 #include "/lib/common.glsl"
 
-vec2 lmcoord = sRGB_to_Linear(texture(LTEX2, texcoord).rgb).rg;
+vec3 lightingInfo = texture(LTEX2, texcoord).rgb;
+vec2 lmcoord = sRGB_to_Linear(lightingInfo).rg;
 vec3 normal = normalize((texture(NTEX3, texcoord).rgb - 0.5) * 2.0);
 #if SPECULAR_MAPPING != 0
 	vec4 specularMaps = texture(STEX6, texcoord);
 #endif
 float distortFactor = 0.0;
-float vertexLightDot = texture(LTEX2, texcoord).z * (1.0+(1.0/16.0));
+float vertexLightDot = lightingInfo.b * (1.0+(1.0/16.0));
 bool lightPassthrough = vertexLightDot > 1.0;
 vec3 extraInfo = texture(ETEX5, texcoord).rgb;
 float vanillaAO = extraInfo.g;
@@ -162,7 +165,7 @@ void main() {
 		}
     #endif
 
-	if(maskInfo == 1.0){ // mask
+	if(maskInfo == 1.0 ){ // mask || specularMaps.g * 255.0 > 229.0
 		extraInfoBuffer = vec4(extraInfo, 1.0);
 		shadowTint = vec4(1.0);
 		OUTPUT = color;
@@ -194,7 +197,10 @@ void main() {
 
 	vec3 feetPlayerPos = (gbufferModelViewInverse * vec4(viewPos, 1.0)).xyz;
 	vec3 worldPos = feetPlayerPos + cameraPosition;
-	vec2 lm = lmcoord;
+	lmcoord.x *= lmcoord.x;
+	vec2 lm;
+	lm.x = lmcoord.x;
+	lm.y = max(0.01, lmcoord.y);
 	#if defined NETHER || defined END
 		lm.y = lm.y * 0.95 + 0.05;
 		const float intensity = 1.0;
@@ -210,7 +216,7 @@ void main() {
 	#elif defined END
 		vec3 sky = END_SKY_COLOR;
 	#else
-		vec3 sky = mix(vec3(0.01), calcSkyColor(normalize((gbufferModelView * vec4(1.0, 0.75, 0.0, 1.0)).xyz)) * 0.37, clamp(intensity * 10.0 - 5.0, 0.3, 1.0));
+		vec3 sky = mix(vec3(0.01), calcSkyColor(normalize((gbufferModelView * vec4(2.0, 1.0, 0.0, 1.0)).xyz)) * 0.35, clamp(intensity * 10.0 - 5.0, 0.3, 1.0));
 	#endif
 
 	vertexLightDot = clamp(vertexLightDot, 0.0, 1.0);
@@ -284,27 +290,23 @@ void main() {
 	
 	color.rgb *= mix(pow(vanillaAO, 1.5), vanillaAO, shadow);
 	#if !defined NETHER
-		#if defined END
-			lm.y = mix(SHADOW_BRIGHTNESS * lm.y, lm.y, shadow);
-		#else
-			lm.y = mix(lmcoord.y * SHADOW_BRIGHTNESS, lm.y, shadow);
-		#endif
-		lm.x /= 1.0 + RGBluminance(sky) * lmcoord.y * 2.0;
+		lm.y = mix(SHADOW_BRIGHTNESS * lm.y, lm.y, shadow);
+		lm.x /= 1.0 + RGBluminance(sky) * lmcoord.y * 16.0;
 		sky *= mix(vec3(lm.y * clamp(lightDot * 0.1 + 2.0, 0.9, 1.1)), celestialColor * tint, shadow);
 	#endif
 
 	color.rgb *= intensitysky * sky + BLOCKLIGHT * lm.x;
 
 	#if defined DISTANT_HORIZONS
-		float fogEnd = isEyeInWater >= 1 ? 60.0 : dhRenderDistance;
+		float fogEnd = isEyeInWater >= 1 ? 60.0 : dhRenderDistance * (1-wetness * 0.65);
 	#else
-		float fogEnd = isEyeInWater >= 1 ? 60.0 : far;	
+		float fogEnd = isEyeInWater >= 1 ? 60.0 : far * (1-wetness * 0.65);	
 	#endif
 
-	float fogStart = isEyeInWater >= 1 ? 20.0 : (fogEnd-10.0) * FOG_START_MULTIPLIER;
+	float fogStart = isEyeInWater >= 1 ? 20.0 : (fogEnd-10.0) * FOG_START_MULTIPLIER ;
 
 	#if defined DISTANT_HORIZONS
-		fogStart *= 0.25;
+		fogStart *= 0.25 * (1-wetness * 0.97);
 	#endif
 	#if defined NETHER || defined END
 		vec3 borderFog = sky;
@@ -320,5 +322,4 @@ void main() {
 	#endif
 	
 	OUTPUT = color;
-	//OUTPUT = vec4(1.0, 0.0, 0.0, 1.0);
 }

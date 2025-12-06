@@ -4,6 +4,8 @@
     #define MASK 0.0
 #endif
 
+#define BASE_SPECULAR vec4(0.15, 0.0, 0.2, 1.0)
+
 uniform sampler2D texture;
 uniform sampler2D depthtex0;
 uniform sampler2D noisetex;
@@ -13,6 +15,7 @@ uniform float viewHeight;
 uniform float far;
 uniform int entityId;
 uniform float frameTime;
+
 
 #if !defined DH
     #ifdef NORMAL_MAPPING
@@ -88,10 +91,10 @@ void main() {
         #if SPECULAR_MAPPING == 2
             specularMap = vec4(texture(specular, texcoord).rgb, 1.0);
         #elif SPECULAR_MAPPING == 1
-            specularMap = vec4(0.15, 0.0, 0.2, 1.0);
+            specularMap = BASE_SPECULAR;
         #endif
     #elif SPECULAR_MAPPING != 0
-        specularMap = vec4(0.15, 0.0, 0.2, 1.0);
+        specularMap = BASE_SPECULAR;
     #endif
     extraInfo = vec4(MASK, vanillaAO, 0.0, 1.0);
 }

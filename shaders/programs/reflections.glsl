@@ -194,19 +194,19 @@ void main() {
 		float metallic = float(specularMaps.g * 255.0 > 229.0);
 		float f0 = specularMaps.g * (0.2+0.8*metallic);
 		float smoothness = (1-roughness);
-		float fresnel = pow(clamp(1.0+surfaceDot, 0.0, 1.0), 5.0) * smoothness;
-		float reflectStrength = clamp(f0+(1.0-f0) * fresnel * smoothness, 0.0, 1.0);
+		float fresnel = pow(clamp(1.0+surfaceDot, 0.0, 1.0), 5.0);
+		float reflectStrength = f0+(1.0-f0) * fresnel * smoothness;
+		reflectStrength *= reflectStrength;
 		reflectStrength *= reflectStrength;
 		#ifdef SCREEN_SPACE_REFLECTIONS
-			bool ssr = reflectStrength > 0.001 + RGBluminance(color.rgb) * 0.09 && roughness < 0.95;
-			if(ssr) reflectionColor = screenSpaceReflections(reflectionColor, skyColor, viewPos, reflectionVec, 1-smoothness *0.95, NMAP, metallic == 1.0 ? color.rgb : vec3(specularMaps.g), isDH);
-			
+			bool ssr = reflectStrength > 0.001 + RGBluminance(color.rgb) * 0.03 && roughness < 0.95;
+			if(ssr) reflectionColor = screenSpaceReflections(reflectionColor, skyColor, viewPos, reflectionVec, roughness, NMAP, metallic == 1.0 ? color.rgb : vec3(specularMaps.g), isDH);
 		#endif
 		if(metallic > 0.5){
-			reflectionColor *= pow(color.rgb, vec3(2.0));
-			reflectStrength *= 0.5;
+			reflectionColor *= pow(color.rgb, vec3(1.5));
+			reflectStrength *= 0.65;
 		}
-		else reflectStrength *= pow(RGBluminance(reflectionColor), 1.0/3.0);
+		else reflectStrength *= pow(RGBluminance(reflectionColor), 1.0/16.0);
 		color.rgb = mix(color.rgb, reflectionColor, clamp(reflectStrength, 0.0, 1.0));
 
 		if(shadow > 0.0) {
@@ -215,10 +215,10 @@ void main() {
 				color.rgb += getSpecularHighlight(normalizedViewPos, lightDot, roughness) * celestialColor * tint * shadow  * (1.0 - 0.9*float(sunAngle != shadowAngle));
 			#else	
 				vec3 reflectance = metallic == 1.0 ? color.rgb : vec3(specularMaps.g);
-				color.rgb += max(brdf(normalizedShadowLightPos, -normalizedViewPos, 1-smoothness *0.95, NMAP, color.rgb, metallic, reflectance) * celestialColor * tint * shadow * (0.2 - 0.1*float(sunAngle != shadowAngle)), 0.0);
+				color.rgb += max(brdf(normalizedShadowLightPos, -normalizedViewPos, 1-smoothness*0.92, NMAP, color.rgb, metallic, reflectance) * celestialColor * tint * shadow * (0.2 - 0.1*float(sunAngle != shadowAngle)), 0.0);
 			#endif
 		}
-		//color.rgb = vec3(ssr);
+		//color.rgb = reflectionColor;
 	}
 	gl_FragData[0] = color; 
 }

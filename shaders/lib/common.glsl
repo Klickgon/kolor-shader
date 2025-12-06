@@ -1,5 +1,5 @@
 #define PI 3.1415926535897932384626433832795
-#define BLOCKLIGHT (vec3(1.0, 0.27, 0.05) * 2.0)
+#define BLOCKLIGHT (vec3(1.0, 0.27, 0.05) * 4.0)
 
 #define SUNCOLOR_MORNING (vec3(1.0, 0.591, 0.309) * 20.0)
 #define SUNCOLOR_NOON (vec3(1.0, 0.67, 0.408) * 8.0)

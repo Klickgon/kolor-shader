@@ -6,11 +6,13 @@
 
 #if defined WEATHER || defined TEXTURED
     #define SAMPLE_SPECULAR vec4(0.0, 0.0, 0.0, 1.0);
+    #define BASE_SPECULAR vec4(0.0, 0.0, 0.0, 1.0);
 #else
     #define SAMPLE_SPECULAR vec4(texture(specular, texcoord).rgb, 1.0);
+    #define BASE_SPECULAR vec4(0.75, 0.3, 1.0, 1.0);
 #endif
 
-#define WATER_COLOR vec4(0.0, 0.44, 0.29, 0.78)
+#define WATER_COLOR vec4(0.0, 0.44, 0.29, 0.67)
 
 #if defined PHYSICS_MOD
     #define WATER_PBR vec4(mix(vec3(0.95, 0.89, 1.0), vec3(0.2, 0.3, 0.3), physics_waveData.foam), 1.0)
@@ -179,21 +181,20 @@ void main() {
             #if SPECULAR_MAPPING == 2
                 specularMap = isWater ? WATER_PBR : SAMPLE_SPECULAR;
             #elif SPECULAR_MAPPING == 1
-                specularMap = isWater ? WATER_PBR : vec4(0.75, 0.0, 1.0, 1.0);
+                specularMap = isWater ? WATER_PBR : BASE_SPECULAR;
             #endif
         #else
             #if SPECULAR_MAPPING == 2
                 specularMap = SAMPLE_SPECULAR;
             #elif SPECULAR_MAPPING == 1
-                specularMap = vec4(0.75, 0.0, 1.0, 1.0);
+                specularMap = BASE_SPECULAR;
             #endif
         #endif
-        
     #elif SPECULAR_MAPPING != 0
         #if defined SHADER_WATER && defined WATER
-            specularMap = isWater ? WATER_PBR : vec4(0.75, 0.0, 1.0, 1.0);
+            specularMap = isWater ? WATER_PBR : BASE_SPECULAR;
         #else
-            specularMap = vec4(0.75, 0.0, 1.0, 1.0);
+            specularMap = BASE_SPECULAR;
         #endif
     #endif
     extraInfo = vec4(MASK, vanillaAO, 0.0, 1.0);

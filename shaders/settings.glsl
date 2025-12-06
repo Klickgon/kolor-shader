@@ -21,6 +21,7 @@
 #define SPECULAR_LIGHT_QUALITY 2 //[1 2]
 #define SHADER_WATER
 #define WATER_GEOMETRY_WAVES
+#define EXPOSURE
 
 /*
 const int colortex0Format = RGBA16F;
@@ -32,6 +33,7 @@ const bool colortex7MipmapEnabled = true;
 */
 
 const float ambientOcclusionLevel = 1.0;
+const float eyeBrightnessHalflife = 10.0;
 
 const bool shadowcolor0Nearest = true;
 const bool shadowtex0Nearest = true;
