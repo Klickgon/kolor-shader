@@ -1,5 +1,6 @@
 #define PI 3.1415926535897932384626433832795
-#define BLOCKLIGHT (vec3(1.0, 0.27, 0.05) * 4.0)
+const float GoldenAngle = PI * (3.0 - sqrt(5.0));
+#define BLOCKLIGHT (vec3(1.0, 0.27, 0.05) * 3.0)
 
 #define SUNCOLOR_MORNING (vec3(1.0, 0.591, 0.309) * 20.0)
 #define SUNCOLOR_NOON (vec3(1.0, 0.67, 0.408) * 8.0)
@@ -66,6 +67,13 @@ float sampleDepthWithHandFix(sampler2D dtex, vec2 coord){
 	float mask = texture(ETEX5, coord).r;
 	bool isHand = mask == HAND_MASK_SOLID || mask == HAND_MASK_TRANSLUCENT;
 	float depth = texture(dtex, coord).r;
+	return isHand ? fixHandDepth(depth) : depth;
+}
+
+float sampleDepthWithHandFixLOD(sampler2D dtex, vec2 coord, float lod){
+	float mask = texture(ETEX5, coord).r;
+	bool isHand = mask == HAND_MASK_SOLID || mask == HAND_MASK_TRANSLUCENT;
+	float depth = textureLod(dtex, coord, lod).r;
 	return isHand ? fixHandDepth(depth) : depth;
 }
 

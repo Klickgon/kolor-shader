@@ -9,7 +9,7 @@
 #define SHADOW_FADE_LENGTH 0.1 //[0 0.05 0.1 0.15 0.2 0.25]
 #define HAND_HELD_LIGHTING
 #define SHADOW_FILTER_QUALITY 3 //[0 1 2 3 4]
-#define SHADOW_FILTER_BLUR 1.5 //[0.25 0.5 0.75 1 1.25 1.5 1.75 2]
+#define SHADOW_FILTER_BLUR 2.0 //[1.0 1.25 1.5 1.75 2.0 2.25 2.5 2.75 3.0]
 #define SHADOW_RENDER_DISTANCE 1.0 //[0.0 0.2 0.4 0.6 0.8 1.0 1.2 1.4 1.6 1.8 2.0 2.2 2.4 2.6 2.8 3.0 3.2]
 #define SCREEN_SPACE_REFLECTIONS
 #define DRAW_SHADOW_MAP 0 //Configures which buffer to draw to the screen [0 1 2 3 4]
@@ -22,6 +22,7 @@
 #define SHADER_WATER
 #define WATER_GEOMETRY_WAVES
 #define EXPOSURE
+#define REFLECTIVITY_CURVE 4.0 //[1.0 1.5 2.0 2.5 3.0 3.5 4.0 4.5 5.0 5.5 6.0]
 
 /*
 const int colortex0Format = RGBA16F;

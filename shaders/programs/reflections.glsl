@@ -192,21 +192,21 @@ void main() {
 		#endif
 
 		float metallic = float(specularMaps.g * 255.0 > 229.0);
-		float f0 = specularMaps.g * (0.2+0.8*metallic);
-		float smoothness = (1-roughness);
+		float f0 = specularMaps.g * (0.3 + 0.3*metallic);
+		vec3 reflectance = vec3(specularMaps.g);
+		float smoothness = 1.0-roughness;
 		float fresnel = pow(clamp(1.0+surfaceDot, 0.0, 1.0), 5.0);
 		float reflectStrength = f0+(1.0-f0) * fresnel * smoothness;
-		reflectStrength *= reflectStrength;
-		reflectStrength *= reflectStrength;
+		reflectStrength = pow(reflectStrength, REFLECTIVITY_CURVE);
 		#ifdef SCREEN_SPACE_REFLECTIONS
 			bool ssr = reflectStrength > 0.001 + RGBluminance(color.rgb) * 0.03 && roughness < 0.95;
-			if(ssr) reflectionColor = screenSpaceReflections(reflectionColor, skyColor, viewPos, reflectionVec, roughness, NMAP, metallic == 1.0 ? color.rgb : vec3(specularMaps.g), isDH);
+			if(ssr) reflectionColor = screenSpaceReflections(reflectionColor, skyColor, viewPos, reflectionVec, roughness, NMAP, reflectance, isDH);
 		#endif
 		if(metallic > 0.5){
-			reflectionColor *= pow(color.rgb, vec3(1.5));
-			reflectStrength *= 0.65;
+			reflectionColor *= pow(color.rgb, vec3(0.5));
+			reflectStrength *= 0.75;
 		}
-		else reflectStrength *= pow(RGBluminance(reflectionColor), 1.0/16.0);
+		else reflectStrength *= pow(RGBluminance(reflectionColor + 0.01), 1.0/20.0);
 		color.rgb = mix(color.rgb, reflectionColor, clamp(reflectStrength, 0.0, 1.0));
 
 		if(shadow > 0.0) {
@@ -214,11 +214,9 @@ void main() {
 				float lightDot = lightPassthrough ? 1.0 : dot(normalizedShadowLightPos, NMAP);
 				color.rgb += getSpecularHighlight(normalizedViewPos, lightDot, roughness) * celestialColor * tint * shadow  * (1.0 - 0.9*float(sunAngle != shadowAngle));
 			#else	
-				vec3 reflectance = metallic == 1.0 ? color.rgb : vec3(specularMaps.g);
 				color.rgb += max(brdf(normalizedShadowLightPos, -normalizedViewPos, 1-smoothness*0.92, NMAP, color.rgb, metallic, reflectance) * celestialColor * tint * shadow * (0.2 - 0.1*float(sunAngle != shadowAngle)), 0.0);
 			#endif
 		}
-		//color.rgb = reflectionColor;
 	}
 	gl_FragData[0] = color; 
 }

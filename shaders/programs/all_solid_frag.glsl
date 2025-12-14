@@ -76,7 +76,7 @@ void main() {
             normalMaps = texture(normals, texcoord).rgb;
             normalMaps.z = sqrt(1.0 - dot(normalMaps.xy, normalMaps.xy));
             normalMaps = mix(vec3(0.5, 0.5, 1.0), normalMaps, NORMAL_MAP_STRENGTH);
-            normalMaps = normalMaps * 2.0 - 1.0;   
+            normalMaps = clamp(normalMaps * 2.0 - 1.0, -1.0, 1.0);
             normalMaps = normalize(tbn * normalMaps);
         #endif
     #endif
