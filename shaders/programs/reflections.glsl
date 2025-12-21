@@ -199,8 +199,8 @@ void main() {
 		float reflectStrength = f0+(1.0-f0) * fresnel * smoothness;
 		reflectStrength = pow(reflectStrength, REFLECTIVITY_CURVE);
 		#ifdef SCREEN_SPACE_REFLECTIONS
-			bool ssr = reflectStrength > 0.001 + RGBluminance(color.rgb) * 0.03 && roughness < 0.95;
-			if(ssr) reflectionColor = screenSpaceReflections(reflectionColor, skyColor, viewPos, reflectionVec, roughness, NMAP, reflectance, isDH);
+			float ssr = clamp(reflectStrength * 500.0 / ((RGBluminance(color.rgb) + roughness) * 1.5), 0.0, 1.0);
+			if(ssr > 0.0) reflectionColor = mix(reflectionColor, screenSpaceReflections(reflectionColor, skyColor, viewPos, reflectionVec, roughness, NMAP, reflectance, isDH), ssr);
 		#endif
 		if(metallic > 0.5){
 			reflectionColor *= pow(color.rgb, vec3(0.5));

@@ -81,7 +81,6 @@ vec3 brdf(vec3 lightDir, vec3 viewDir, float roughness, vec3 normal, vec3 albedo
         vec3 screenSpaceReflections(vec3 color, vec3 sky, vec3 pixelViewPos, vec3 reflectionDirection, float roughness, vec3 normal, vec3 reflectance, bool isDH){
             reflectionDirection *= 0.01;
             const float rayLength = 1.32 * ((MAX_SSR_STEPS.0 * (MAX_SSR_STEPS.0 + 1.0)) / 2.0);
-            vec2 screenResolution = vec2(viewWidth, viewHeight);
 
             vec3 ray = pixelViewPos;
             vec3 rayStep = reflectionDirection * 1.32;
@@ -105,10 +104,9 @@ vec3 brdf(vec3 lightDir, vec3 viewDir, float roughness, vec3 normal, vec3 albedo
         #define MAX_SSR_STEPS 250
         vec3 screenSpaceReflections(vec3 color, vec3 sky, vec3 pixelViewPos, vec3 reflectionDirection, float roughness, vec3 normalMap, vec3 reflectance, bool isDH){
             const float rayLength = 1.32 * ((MAX_SSR_STEPS.0 * (MAX_SSR_STEPS.0 + 1.0)) / 2.0);
-            vec2 screenResolution = vec2(viewWidth, viewHeight);
             float ssraccuracy = (1.0-roughness * 0.80) * (1+abs(dot(gbufferModelView[1].xyz, reflectionDirection)));
             reflectionDirection *= 0.001;
-            reflectionDirection += (noise + 5.0 * roughness) * 0.0000002;
+            reflectionDirection += ((noise * 2.0 - 1.0) + 5.0 * roughness) * 0.0000002;
             float distanceboost = (1+length(pixelViewPos) * 0.06);
             vec3 ray = pixelViewPos;
             vec3 rayStep = reflectionDirection * 1.32 * distanceboost / ssraccuracy;

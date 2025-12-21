@@ -99,8 +99,8 @@ void main() {
     #ifdef DISTANT_HORIZONS
         #if defined DH
             if(viewPosLength < far * 0.80) discard;
-            vec2 fragCoord = gl_FragCoord.xy / vec2(viewWidth, viewHeight);
-            if(texture(depthtex0, fragCoord).r < 1.0) discard;
+            vec2 ssCoord = gl_FragCoord.xy / vec2(viewWidth, viewHeight);
+            if(texture(depthtex0, ssCoord).r < 1.0) discard;
         #else
             if(max((viewPosLength - far * 0.95) * 0.05, 0.0) > getNoise(gl_FragCoord.xy)) discard;
         #endif

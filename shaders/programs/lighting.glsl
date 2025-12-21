@@ -292,7 +292,7 @@ void main() {
 	#if !defined NETHER
 		lm.y = mix(SHADOW_BRIGHTNESS * lm.y, lm.y, shadow);
 		lm.x /= 1.0 + RGBluminance(sky) * lmcoord.y * 16.0;
-		sky *= mix(vec3(lm.y * clamp(lightDot * 0.1 + 2.0, 0.9, 1.1)), celestialColor * tint, shadow);
+		sky *= mix(vec3(lm.y), celestialColor * tint, shadow) * clamp(lightDot * 0.1 + 1.0, 0.9, 1.0);
 	#endif
 
 	color.rgb *= intensitysky * sky + BLOCKLIGHT * lm.x;
