@@ -54,7 +54,7 @@ void main() {
 	glcolor = gl_Color;
 	vanillaAO = glcolor.a;
 	lmcoord = lmcoord / (30.0 / 32.0) - (1.0 / 32.0);
-	#if defined TEXTURED
+	#if defined TEXTURED || WEATHER
 		vertexNormal = vec3(0.0, 0.0, 1.0);
 	#else
 		vertexNormal = normalize(gl_NormalMatrix * gl_Normal);

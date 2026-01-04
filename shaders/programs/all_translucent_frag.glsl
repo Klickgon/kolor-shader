@@ -12,12 +12,12 @@
     #define BASE_SPECULAR vec4(0.75, 0.3, 1.0, 1.0);
 #endif
 
-#define WATER_COLOR vec4(0.0, 0.60, 0.55, 0.67)
+#define WATER_COLOR vec4(0.0, 0.52, 0.48, 0.67)
 
 #if defined PHYSICS_MOD
     #define WATER_PBR vec4(mix(vec3(0.85, 0.89, 1.0), vec3(0.2, 0.3, 0.3), physics_waveData.foam), 1.0)
 #else
-    #define WATER_PBR vec4(0.91, 0.89, 1.0, 1.0)
+    #define WATER_PBR vec4(0.99, 0.89, 1.0, 1.0)
 #endif
 
 uniform mat4 gbufferModelView;
@@ -163,12 +163,11 @@ void main() {
                     #endif
                 normalMaps.z = sqrt(1.0 - dot(normalMaps.xy, normalMaps.xy));
                 normalMaps = mix(vec3(0.5, 0.5, 1.0), normalMaps, NORMAL_MAP_STRENGTH);
-                normalMaps = clamp(normalMaps * 2.0 - 1.0, -1.0, 1.0);
+                normalMaps = clamp(normalMaps * 2.0 - 1.0, -0.5, 1.0);
                 normalMaps = normalize(tbn * normalMaps);
             #endif
         #endif
     #endif
-    //precolor.a = 1.0;
     outColor = precolor;
     lightmapData = vec4(lmcoord, vertexLightDot, 1.0);
     encodedNormal = vec4(normal * 0.5 + 0.5, 1.0);

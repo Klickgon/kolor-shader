@@ -128,6 +128,9 @@ float getNoise(vec2 coord){
 }
 
 float noise = getNoise(texcoord);
+float noisetwo = getNoise(texcoord + vec2(0.1, -0.2));
+float noisethree = getNoise(texcoord + vec2(0.2, -0.1));
+vec3 noiseVec = vec3(noise, noisetwo, noisethree);
 
 #include "/lib/sky_and_fog_functions.glsl"
 #include "/lib/reflect_functions.glsl"
@@ -175,11 +178,10 @@ void main() {
     float surfaceDot = dot(normalizedViewPos, normal);
     float shadow = extraInfo.b;
     vec3 tint = texture(STTEX7, texcoord).rgb;
-	float roughness = pow(1 - specularMaps.r, 2.0);
+	float roughness = pow(1.0 - specularMaps.r, 2.0);
 	
 	if(specularMaps.g > 0.0 || roughness < 1.0) {
 		vec3 reflectionVec = reflect(normalizedViewPos, NMAP);
-
 		#if defined END
 			const vec3 skyColor = END_SKY_COLOR;
 			vec3 reflectionColor = skyColor;
@@ -190,13 +192,12 @@ void main() {
 			vec3 skyColor = sRGB_to_Linear(calcSkyColor(reflectionVec));
 			vec3 reflectionColor = skyColor * clamp((cameraPosition.y - 45.0) * 0.1 * lmcoord.y, 0.0, 1.0);
 		#endif
-
 		float metallic = float(specularMaps.g * 255.0 > 229.0);
-		float f0 = specularMaps.g * (0.3 + 0.3*metallic);
+		float f0 = specularMaps.g * (0.1 + 0.3*metallic);
 		vec3 reflectance = vec3(specularMaps.g);
 		float smoothness = 1.0-roughness;
-		float fresnel = pow(clamp(1.0+surfaceDot, 0.0, 1.0), 5.0);
-		float reflectStrength = f0+(1.0-f0) * fresnel * smoothness;
+		float fresnel = pow(clamp(1.0 + surfaceDot, 0.0, 1.0), 5.0);
+		float reflectStrength = (f0+(1.0-f0) * fresnel) * smoothness * smoothness;
 		reflectStrength = pow(reflectStrength, REFLECTIVITY_CURVE);
 		#ifdef SCREEN_SPACE_REFLECTIONS
 			float ssr = clamp(reflectStrength * 500.0 / ((RGBluminance(color.rgb) + roughness) * 1.5), 0.0, 1.0);
@@ -206,15 +207,14 @@ void main() {
 			reflectionColor *= pow(color.rgb, vec3(0.5));
 			reflectStrength *= 0.75;
 		}
-		else reflectStrength *= pow(RGBluminance(reflectionColor + 0.01), 1.0/20.0);
+		else reflectStrength *= pow(RGBluminance(reflectionColor + 0.01), 1.0/16.0);
 		color.rgb = mix(color.rgb, reflectionColor, clamp(reflectStrength, 0.0, 1.0));
-
 		if(shadow > 0.0) {
 			#if SPECULAR_LIGHT_QUALITY == 1
 				float lightDot = lightPassthrough ? 1.0 : dot(normalizedShadowLightPos, NMAP);
 				color.rgb += getSpecularHighlight(normalizedViewPos, lightDot, roughness) * celestialColor * tint * shadow  * (1.0 - 0.9*float(sunAngle != shadowAngle));
 			#else	
-				color.rgb += max(brdf(normalizedShadowLightPos, -normalizedViewPos, 1-smoothness*0.92, NMAP, color.rgb, metallic, reflectance) * celestialColor * tint * shadow * (0.2 - 0.1*float(sunAngle != shadowAngle)), 0.0);
+				color.rgb += max(brdf(normalizedShadowLightPos, -normalizedViewPos, 1-smoothness * 0.95, NMAP, color.rgb, metallic, reflectance) * celestialColor * tint * shadow * (0.2 - 0.1*float(sunAngle != shadowAngle)), 0.0);
 			#endif
 		}
 	}

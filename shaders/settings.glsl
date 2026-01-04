@@ -22,7 +22,7 @@
 #define SHADER_WATER
 #define WATER_GEOMETRY_WAVES
 #define EXPOSURE
-#define REFLECTIVITY_CURVE 4.0 //[1.0 1.5 2.0 2.5 3.0 3.5 4.0 4.5 5.0 5.5 6.0]
+#define REFLECTIVITY_CURVE 2.0 //[1.0 1.5 2.0 2.5 3.0 3.5 4.0 4.5 5.0 5.5 6.0]
 
 /*
 const int colortex0Format = RGBA16F;

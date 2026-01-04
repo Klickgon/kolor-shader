@@ -4,7 +4,7 @@ const float GoldenAngle = PI * (3.0 - sqrt(5.0));
 
 #define SUNCOLOR_MORNING (vec3(1.0, 0.591, 0.309) * 20.0)
 #define SUNCOLOR_NOON (vec3(1.0, 0.67, 0.408) * 8.0)
-#define SUNCOLOR_EVENING (vec3(1.0, 0.337, 0.056) * 12.0)
+#define SUNCOLOR_EVENING (vec3(1.0, 0.237, 0.156) * 24.0)
 
 #define MOONCOLOR_EARLY (vec3(0.901, 0.929, 1.0) * 3.0)
 #define MOONCOLOR_MIDNIGHT (vec3(0.822 , 0.871, 1.0) * 3.0)

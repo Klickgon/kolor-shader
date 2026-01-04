@@ -138,6 +138,9 @@ float getNoise(vec2 coord){
 }
 
 float noise = getNoise(texcoord);
+float noisetwo = getNoise(texcoord + vec2(0.1, -0.2));
+float noisethree = getNoise(texcoord + vec2(0.2, -0.1));
+vec3 noiseVec = vec3(noise, noisetwo, noisethree);
 float shadowRenderDis = min(shadowDistance * shadowDistanceRenderMul, far);
 
 #include "/lib/distort.glsl"

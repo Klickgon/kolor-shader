@@ -60,7 +60,7 @@ vec3 brdf(vec3 lightDir, vec3 viewDir, float roughness, vec3 normal, vec3 albedo
     vec3 brdfSSRColorSample(vec3 ray, vec3 pixelViewPos, float rayLength, float rayProgress, float roughness, vec3 normal, vec3 reflectance){
         if(rayProgress * rayLength > 1.0 && roughness > 0.01){
             vec3 screenResolution = vec3(viewWidth, viewHeight, 0.0);
-            float mult = (1+roughness * 20.0) * rayLength * rayProgress * 0.0001 + 0.000001;
+            float mult = (1+roughness * 20.0) * rayLength * rayProgress * 0.000005;
             mat2 rotation = getRotationMat2(noise);
             vec3 color = vec3(0.0);
             vec3 weightsum = vec3(0.0);
@@ -102,20 +102,21 @@ vec3 brdf(vec3 lightDir, vec3 viewDir, float roughness, vec3 normal, vec3 albedo
         }
     #else
         #define MAX_SSR_STEPS 250
+        #define SSR_RAY_BASE_LENGTH 1.15
         vec3 screenSpaceReflections(vec3 color, vec3 sky, vec3 pixelViewPos, vec3 reflectionDirection, float roughness, vec3 normalMap, vec3 reflectance, bool isDH){
-            const float rayLength = 1.32 * ((MAX_SSR_STEPS.0 * (MAX_SSR_STEPS.0 + 1.0)) / 2.0);
+            const float rayLength = SSR_RAY_BASE_LENGTH * ((MAX_SSR_STEPS.0 * (MAX_SSR_STEPS.0 + 1.0)) / 2.0);
             float ssraccuracy = (1.0-roughness * 0.80) * (1+abs(dot(gbufferModelView[1].xyz, reflectionDirection)));
             reflectionDirection *= 0.001;
-            reflectionDirection += ((noise * 2.0 - 1.0) + 5.0 * roughness) * 0.0000002;
+            reflectionDirection += (noiseVec * 2.0 - 1.0) * roughness * 0.00002;
             float distanceboost = (1+length(pixelViewPos) * 0.06);
             vec3 ray = pixelViewPos;
-            vec3 rayStep = reflectionDirection * 1.32 * distanceboost / ssraccuracy;
+            vec3 rayStep = reflectionDirection * SSR_RAY_BASE_LENGTH * distanceboost / (ssraccuracy * 1.75);
             rayStep *= 1.0 + dhRenderDistance * 0.001;
             vec3 ssRayPos;
             float depthDelta;
             
             int steps = int(MAX_SSR_STEPS * ssraccuracy);
-            float deltaMin = 0.08 + (1-abs(dot(reflectionDirection, normal))) * 0.05;
+            float deltaMin = 0.1 + (1-abs(dot(reflectionDirection, normal))) * 0.05;
             float deltaMult = 0.01 * ssraccuracy * pow(distanceboost, 1.5);
 
             for(int i = 1; i <= steps; i++){
@@ -136,7 +137,7 @@ vec3 brdf(vec3 lightDir, vec3 viewDir, float roughness, vec3 normal, vec3 albedo
                     depthDelta -= linearizeDepth(depth);
                 }
                 if(!isDH && depth >= 1.0 && ssRayPos.z >= 1.0) continue;
-                float rayprogress = (1.32 * ((ifloat * (ifloat + 1.0))) / 2.0) / rayLength;
+                float rayprogress = (SSR_RAY_BASE_LENGTH * ((ifloat * (ifloat + 1.0))) / 2.0) / rayLength;
                 if(depthDelta > deltaMin && depthDelta < (0.1 + ifloat * deltaMult)) return !isHand ? brdfSSRColorSample(ray, pixelViewPos, rayLength, rayprogress, roughness, normalMap, reflectance) : color;
             }
             ray = normalize(ray) * 10000;
