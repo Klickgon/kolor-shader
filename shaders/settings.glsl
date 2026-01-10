@@ -29,6 +29,7 @@ const int colortex0Format = RGBA16F;
 const int colortex7Format = RGBA16F;
 const int colortex2Format = RGB16;
 const int colortex3Format = RGB16;
+const vec4 colortex7ClearColor = vec4(0.5, 0.5, 0.5, 0.01);
 const bool colortex0MipmapEnabled = true;
 const bool colortex7MipmapEnabled = true;
 */

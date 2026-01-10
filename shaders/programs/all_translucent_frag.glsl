@@ -17,7 +17,7 @@
 #if defined PHYSICS_MOD
     #define WATER_PBR vec4(mix(vec3(0.85, 0.89, 1.0), vec3(0.2, 0.3, 0.3), physics_waveData.foam), 1.0)
 #else
-    #define WATER_PBR vec4(0.99, 0.89, 1.0, 1.0)
+    #define WATER_PBR vec4(0.85, 0.59, 1.0, 1.0)
 #endif
 
 uniform mat4 gbufferModelView;

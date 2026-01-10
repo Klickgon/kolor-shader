@@ -68,11 +68,11 @@ vec3 brdf(vec3 lightDir, vec3 viewDir, float roughness, vec3 normal, vec3 albedo
                 vec3 currentRay = ray + vec3(rayCoords[i] * rotation, 0.0) * mult;
                 vec3 weight = max(brdf(normalize(currentRay), -normalize(pixelViewPos), roughness, normal, vec3(0.0), 0.0, reflectance), 0.0);
                 weightsum += weight;
-                color += textureLod(colortex0,(projectAndDivide(gbufferProjection, currentRay) * 0.5 + 0.5).xy, 0.5).rgb * weight;
+                color += texture(colortex0,(projectAndDivide(gbufferProjection, currentRay) * 0.5 + 0.5).xy).rgb * weight;
             }
-            return color / max(weightsum, 0.01);
+            return color / max(weightsum, 0.00000001);
         }
-        return textureLod(colortex0,(projectAndDivide(gbufferProjection, ray) * 0.5 + 0.5).xy, 0.5).rgb;
+        return texture(colortex0,(projectAndDivide(gbufferProjection, ray) * 0.5 + 0.5).xy).rgb;
     }
     
     #if !defined DISTANT_HORIZONS
@@ -140,8 +140,8 @@ vec3 brdf(vec3 lightDir, vec3 viewDir, float roughness, vec3 normal, vec3 albedo
                 float rayprogress = (SSR_RAY_BASE_LENGTH * ((ifloat * (ifloat + 1.0))) / 2.0) / rayLength;
                 if(depthDelta > deltaMin && depthDelta < (0.1 + ifloat * deltaMult)) return !isHand ? brdfSSRColorSample(ray, pixelViewPos, rayLength, rayprogress, roughness, normalMap, reflectance) : color;
             }
-            ray = normalize(ray) * 10000;
-            return depthDelta < 0.0 ? brdfSSRColorSample(ray, pixelViewPos, 10000, 1.0, roughness, normalMap, reflectance) : color;
+            ray = normalize(ray) * 10000000;
+            return depthDelta < 0.0 ? brdfSSRColorSample(ray, pixelViewPos, 10000000, 1.0, roughness, normalMap, reflectance) : color;
         }
 
     #endif
