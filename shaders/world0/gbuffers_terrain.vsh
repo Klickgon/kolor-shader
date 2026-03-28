@@ -1,3 +1,5 @@
 #version 120
 
-#include "/programs/all_solid_ver.glsl"
+#define TERRAIN
+
+#include "/./programs/all_solid_ver.glsl"

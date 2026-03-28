@@ -57,20 +57,23 @@ vec3 brdf(vec3 lightDir, vec3 viewDir, float roughness, vec3 normal, vec3 albedo
                                      vec2(-0.02099, -0.040527),
                                      vec2(0.045626, 0.016714));
 
-    vec3 brdfSSRColorSample(vec3 ray, vec3 pixelViewPos, float rayLength, float rayProgress, float roughness, vec3 normal, vec3 reflectance){
-        if(rayProgress * rayLength > 1.0 && roughness > 0.01){
+    vec3 brdfSSRColorSample(vec3 ray, vec3 pixelViewPos, float rayProgress, float roughness, vec3 normal, vec3 reflectance){
+        if(rayProgress > 0.1 && roughness > 0.01){
             vec3 screenResolution = vec3(viewWidth, viewHeight, 0.0);
-            float mult = (1+roughness * 20.0) * rayLength * rayProgress * 0.000005;
+            float mult = (1+roughness * 2.0) * 0.000001;
             mat2 rotation = getRotationMat2(noise);
             vec3 color = vec3(0.0);
             vec3 weightsum = vec3(0.0);
             for(int i = 0; i < 9; i++){
                 vec3 currentRay = ray + vec3(rayCoords[i] * rotation, 0.0) * mult;
+                vec2 rayScreenSpace = (projectAndDivide(gbufferProjection, currentRay) * 0.5 + 0.5).xy;
+                if(clamp(rayScreenSpace.xy, 0.0, 1.0) != rayScreenSpace.xy) continue;
                 vec3 weight = max(brdf(normalize(currentRay), -normalize(pixelViewPos), roughness, normal, vec3(0.0), 0.0, reflectance), 0.0);
                 weightsum += weight;
-                color += texture(colortex0,(projectAndDivide(gbufferProjection, currentRay) * 0.5 + 0.5).xy).rgb * weight;
+                color += texture(colortex0, rayScreenSpace).rgb * weight;
             }
-            return color / max(weightsum, 0.00000001);
+            
+            return color / max(weightsum, 0.000000000001);
         }
         return texture(colortex0,(projectAndDivide(gbufferProjection, ray) * 0.5 + 0.5).xy).rgb;
     }
@@ -96,9 +99,9 @@ vec3 brdf(vec3 lightDir, vec3 viewDir, float roughness, vec3 normal, vec3 albedo
 	            isHand = mask == HAND_MASK_SOLID || mask == HAND_MASK_TRANSLUCENT;
                 depthDelta = linearizeDepth(ssRayPos.z) - linearizeDepth(sampleDepthWithHandFixLOD(depthtex1, ssRayPos.xy, 0.5));
                 float rayprogress = (1.32 * ((ifloat * (ifloat + 1.0)) / 2.0) / rayLength);
-                if(depthDelta > 0.00 && depthDelta < (0.01 + ifloat * 0.05)) return !isHand ? brdfSSRColorSample(ray, pixelViewPos, rayLength, rayprogress, roughness, normal, reflectance) : color;
+                if(depthDelta > 0.00 && depthDelta < (0.01 + ifloat * 0.05)) return !isHand ? brdfSSRColorSample(ray, pixelViewPos, rayprogress, roughness, normal, reflectance) : color;
             }
-            return depthDelta < 0.0 && !isHand ? brdfSSRColorSample(ray, pixelViewPos, rayLength, 1.0, roughness, normal, reflectance) : color;
+            return depthDelta < 0.0 && !isHand ? brdfSSRColorSample(ray, pixelViewPos, 1.0, roughness, normal, reflectance) : color;
         }
     #else
         #define MAX_SSR_STEPS 250
@@ -108,41 +111,67 @@ vec3 brdf(vec3 lightDir, vec3 viewDir, float roughness, vec3 normal, vec3 albedo
             float ssraccuracy = (1.0-roughness * 0.80) * (1+abs(dot(gbufferModelView[1].xyz, reflectionDirection)));
             reflectionDirection *= 0.001;
             reflectionDirection += (noiseVec * 2.0 - 1.0) * roughness * 0.00002;
-            float distanceboost = (1+length(pixelViewPos) * 0.06);
+            float distanceboost = (1+length(pixelViewPos) * 0.05);
             vec3 ray = pixelViewPos;
-            vec3 rayStep = reflectionDirection * SSR_RAY_BASE_LENGTH * distanceboost / (ssraccuracy * 1.75);
-            rayStep *= 1.0 + dhRenderDistance * 0.001;
+            vec3 rayStep = reflectionDirection * SSR_RAY_BASE_LENGTH * distanceboost / (ssraccuracy * 0.5);
             vec3 ssRayPos;
             float depthDelta;
             
             int steps = int(MAX_SSR_STEPS * ssraccuracy);
             float deltaMin = 0.1 + (1-abs(dot(reflectionDirection, normal))) * 0.05;
             float deltaMult = 0.01 * ssraccuracy * pow(distanceboost, 1.5);
-
+            float rayprogress = 0.0;
             for(int i = 1; i <= steps; i++){
                 float ifloat = float(i);
+                vec3 prevRay = ray;
                 ray += rayStep * ifloat;
                 ssRayPos = projectAndDivide(gbufferProjection, ray) * 0.5 + 0.5;
-                if(ssRayPos.x < 0.0 || ssRayPos.x > 1.0 || ssRayPos.y < 0.0 || ssRayPos.y > 1.0) return color;
+                if(clamp(ssRayPos.xy, 0.0, 1.0) != ssRayPos.xy) return color;
                 float mask = texture(ETEX5, ssRayPos.xy).r;
 	            bool isHand = mask == HAND_MASK_SOLID || mask == HAND_MASK_TRANSLUCENT;
                 bool isDH = mask == DH_MASK_SOLID || mask == DH_MASK_TRANSLUCENT;
                 depthDelta = linearizeDepth(ssRayPos.z);
                 float depth = 0.0;
                 if(isDH){
-                    depth = 0.0;
-                    depthDelta -= linearizeDepthDH(textureLod(dhDepthTex1, ssRayPos.xy, 1.0).r);
+                    depth = texture(dhDepthTex1, ssRayPos.xy).r;
+                    depthDelta -= linearizeDepthDH(depth);
                 } else {
-                    depth = textureLod(depthtex1, ssRayPos.xy, 1.0).r;
+                    depth = texture(depthtex1, ssRayPos.xy).r;
                     depthDelta -= linearizeDepth(depth);
+                    if(depth >= 1.0 && ssRayPos.z >= 1.0) continue;
                 }
-                if(!isDH && depth >= 1.0 && ssRayPos.z >= 1.0) continue;
-                float rayprogress = (SSR_RAY_BASE_LENGTH * ((ifloat * (ifloat + 1.0))) / 2.0) / rayLength;
-                if(depthDelta > deltaMin && depthDelta < (0.1 + ifloat * deltaMult)) return !isHand ? brdfSSRColorSample(ray, pixelViewPos, rayLength, rayprogress, roughness, normalMap, reflectance) : color;
+                rayprogress += SSR_RAY_BASE_LENGTH * ifloat / rayLength;
+                if(depthDelta > deltaMin && depthDelta < (0.1 + ifloat * deltaMult)){
+                    vec3 tempssRayPos;
+                    for(int j = 0; j < 15; j++){
+                        vec3 midpoint = mix(prevRay, ray, 0.5);
+                        tempssRayPos = projectAndDivide(gbufferProjection, midpoint) * 0.5 + 0.5;
+                        mask = texture(ETEX5, tempssRayPos.xy).r;
+                        isHand = mask == HAND_MASK_SOLID || mask == HAND_MASK_TRANSLUCENT;
+                        isDH = mask == DH_MASK_SOLID || mask == DH_MASK_TRANSLUCENT;
+                        float newDepthDelta = linearizeDepth(tempssRayPos.z);
+                        float newdepth = 0.0;
+                        if(isDH){
+                            newdepth = texture(dhDepthTex1, tempssRayPos.xy).r;
+                            newDepthDelta -= linearizeDepthDH(newdepth);
+                        } else {
+                            newdepth = texture(depthtex1, tempssRayPos.xy).r;
+                            newDepthDelta -= linearizeDepth(newdepth);
+                        }
+                        if(depthDelta > newDepthDelta) ray = midpoint;
+                        else prevRay = midpoint;
+                    }
+                    float edgeFactor = min(min(tempssRayPos.x, 1.0 - tempssRayPos.x), min(tempssRayPos.y, 1.0 - tempssRayPos.y));
+			        edgeFactor = smoothstep(0.0, 0.1, edgeFactor);
+			        edgeFactor = sqrt(edgeFactor);
+                    return !isHand ? mix(color, brdfSSRColorSample(ray, pixelViewPos, rayprogress, roughness, normalMap, reflectance), edgeFactor) : color;
+                } 
             }
-            ray = normalize(ray) * 10000000;
-            return depthDelta < 0.0 ? brdfSSRColorSample(ray, pixelViewPos, 10000000, 1.0, roughness, normalMap, reflectance) : color;
+            ray *= 120.0;
+            float edgeFactor = min(min(ssRayPos.x, 1.0 - ssRayPos.x), min(ssRayPos.y, 1.0 - ssRayPos.y));
+			edgeFactor = smoothstep(0.0, 0.1, edgeFactor);
+			edgeFactor = sqrt(edgeFactor);
+            return depthDelta < 1.0 ? mix(color, brdfSSRColorSample(ray, pixelViewPos, 1.0, roughness, normalMap, reflectance), edgeFactor) : color;
         }
-
     #endif
 #endif

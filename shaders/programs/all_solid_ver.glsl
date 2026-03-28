@@ -29,6 +29,9 @@ varying vec3 vertexNormal;
 varying float vertexLightDot;
 varying float viewPosLength;
 varying float vanillaAO;
+varying vec3 worldPos;
+varying float upDot;
+varying float sideDot;
 
 #include "/./lib/vertex_manipulation.glsl"
 
@@ -36,7 +39,7 @@ void main() {
 	texcoord = (gl_TextureMatrix[0] * gl_MultiTexCoord0).xy;
 	lmcoord  = (gl_TextureMatrix[1] * gl_MultiTexCoord1).xy;
 	lmcoord = lmcoord / (30.0 / 32.0) - (1.0 / 32.0);
-	
+
 	glcolor = gl_Color;
 	vanillaAO = glcolor.a;
 
@@ -47,11 +50,15 @@ void main() {
 	#endif
 	bool lightPassthrough = mc_Entity.x == 10601.0 || mc_Entity.x == 12412.0;
 	vertexLightDot = lightPassthrough ? 1.0 : dot(vertexNormal, normalize(shadowLightPosition)) * (1.0-(1.0/16.0));
-
+	
+	vec3 worldNormal = (gbufferModelViewInverse * vec4(vertexNormal, 1.0)).xyz;
+	upDot = worldNormal.y;
+	sideDot = abs(worldNormal.x);
+	
 	vec3 viewPos = (gl_ModelViewMatrix * gl_Vertex).xyz;
 	viewPosLength = length(viewPos);
 	vec3 playerPos = (gbufferModelViewInverse * vec4(viewPos, 1.0)).xyz;
-	vec3 worldPos = playerPos + cameraPosition;
+	worldPos = playerPos + cameraPosition;
 	if(mc_Entity.x == 10601.0 || mc_Entity.x == 2003.0){
 		viewPos = (gbufferModelView * vec4(applyWindEffect(worldPos) - cameraPosition, 1.0)).xyz;
 	}

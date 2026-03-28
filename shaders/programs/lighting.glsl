@@ -90,6 +90,7 @@ uniform vec3 cameraPosition;
 uniform float viewWidth;
 uniform float viewHeight;
 uniform float wetness;
+uniform float rainStrength;
 uniform float screenBrightness;
 
 #if defined DISTANT_HORIZONS
@@ -168,7 +169,7 @@ void main() {
 		}
     #endif
 
-	if(maskInfo == 1.0 ){ // mask || specularMaps.g * 255.0 > 229.0
+	if(maskInfo == 1.0){
 		extraInfoBuffer = vec4(extraInfo, 1.0);
 		shadowTint = vec4(1.0);
 		OUTPUT = color;
@@ -225,7 +226,14 @@ void main() {
 	vertexLightDot = clamp(vertexLightDot, 0.0, 1.0);
 	
 	float lightDot = lightPassthrough ? 1.0 : dot(normalizedShadowLightPos, NMAP);
-	float lightDotSqrt = sqrt(clamp(lightDot, 0.0, 1.0));
+
+	#if SPECULAR_MAPPING != 0
+		float roughness = pow(1.0 - specularMaps.r, 2.0);
+		float smoothness = 1-roughness;
+		float lightDotSqrt = pow(clamp(lightDot, 0.0, 1.0), 1.0/2.0 * (smoothness * 0.1 + 1.0)) * (1-roughness * 0.1);
+	#else
+		float lightDotSqrt = pow(clamp(lightDot, 0.0, 1.0), 1.0/2.0);
+	#endif
 
 	#ifdef HAND_HELD_LIGHTING
 		float blockLightValue = heldBlockLightValue * 0.65;
@@ -291,7 +299,12 @@ void main() {
 	lightDot = mix(0.0, lightDot, lightFadeOut);
 	extraInfoBuffer = vec4(extraInfo.rg, shadow, 1.0);
 	
-	color.rgb *= mix(pow(vanillaAO, 1.5), vanillaAO, shadow);
+	#if defined SCREEN_SPACE_AMBIENT_OCCLUSION && !defined TRANSLUCENT_PASS
+		float ambientOcclusion = min(vanillaAO, clamp(SSAO(screenPos, viewPos, normal, noiseVec.xy * 0.05, 1.0), 0.0, 1.0));
+	#else
+		float ambientOcclusion = vanillaAO;
+	#endif
+	color.rgb *= mix(pow(ambientOcclusion, 1.5), ambientOcclusion, shadow);
 	#if !defined NETHER
 		lm.y = mix(SHADOW_BRIGHTNESS * lm.y, lm.y, shadow);
 		lm.x /= 1.0 + RGBluminance(sky) * lmcoord.y * 16.0;

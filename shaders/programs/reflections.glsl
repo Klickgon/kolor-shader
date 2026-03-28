@@ -82,6 +82,7 @@ uniform vec3 eyePosition;
 uniform vec3 cameraPosition;
 uniform float viewWidth;
 uniform float viewHeight;
+uniform float rainStrength;
 
 #if defined DISTANT_HORIZONS
 	uniform int dhRenderDistance;
@@ -99,9 +100,7 @@ varying vec2 texcoord;
 
 vec2 lmcoord = sRGB_to_Linear(texture(LTEX2, texcoord).xyz).rg;
 vec3 normal = normalize((texture(NTEX3, texcoord).rgb - 0.5) * 2.0);
-#if SPECULAR_MAPPING != 0
-	vec4 specularMaps = texture(STEX6, texcoord);
-#endif
+vec4 specularMaps = texture(STEX6, texcoord);
 float vertexLightDot = texture(LTEX2, texcoord).z * (1.0+(1.0/16.0));
 bool lightPassthrough = vertexLightDot > 1.0;
 vec3 extraInfo = texture(ETEX5, texcoord).rgb;
@@ -197,15 +196,16 @@ void main() {
 		vec3 reflectance = vec3(specularMaps.g);
 		float smoothness = 1.0-roughness;
 		float fresnel = pow(clamp(1.0 + surfaceDot, 0.0, 1.0), 5.0);
-		float reflectStrength = (f0+(1.0-f0) * fresnel) * smoothness * smoothness;
+		float reflectStrength = (f0+(1.0-f0) * fresnel) * pow(smoothness, 3.0);
 		reflectStrength = pow(reflectStrength, REFLECTIVITY_CURVE);
 		#ifdef SCREEN_SPACE_REFLECTIONS
 			float ssr = min(reflectStrength * 500.0 / ((RGBluminance(color.rgb) + roughness) * 1.5), 1.0);
-			if(ssr > 0.0) reflectionColor = mix(reflectionColor, screenSpaceReflections(reflectionColor, skyColor, viewPos, reflectionVec, roughness, NMAP, reflectance, isDH), ssr);
+			if(ssr > 0.0) reflectionColor =  mix(reflectionColor, screenSpaceReflections(reflectionColor, skyColor, viewPos, reflectionVec, 1-smoothness * 0.98, NMAP, reflectance, isDH), ssr);
 		#endif
 		if(metallic > 0.5){
 			reflectionColor *= pow(color.rgb, vec3(0.5));
-		} else reflectStrength *= pow(RGBluminance(reflectionColor + 0.01), 1.0/8.0);
+			reflectStrength *= 0.25;
+		} else reflectStrength *= pow(RGBluminance(reflectionColor + 0.01), 1.0/16.0);
 		color.rgb = mix(color.rgb, reflectionColor, clamp(reflectStrength, 0.0, 1.0));
 		if(shadow > 0.0) {
 			#if SPECULAR_LIGHT_QUALITY == 1
@@ -216,5 +216,5 @@ void main() {
 			#endif
 		}
 	}
-	gl_FragData[0] = color; 
+	gl_FragData[0] = color;
 }

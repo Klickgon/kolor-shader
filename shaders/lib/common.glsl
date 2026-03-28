@@ -10,8 +10,8 @@ const float GoldenAngle = PI * (3.0 - sqrt(5.0));
 #define MOONCOLOR_MIDNIGHT (vec3(0.822 , 0.871, 1.0) * 3.0)
 #define MOONCOLOR_LATE (vec3(0.901, 0.929, 1.0) * 3.0)
 
-#define WATER_COLOR vec4(0.0, 0.44, 0.27, 0.50)
-#define WATER_PBR vec4(1.0, 0.89, 1.0, 1.0)
+#define WATER_COLOR vec4(0.0, 0.42, 0.37, 0.47)
+#define WATER_PBR vec4(0.95, 0.59, 1.0, 1.0)
 
 #define MASK_SOLID 0.0
 #define DH_MASK_SOLID 1.0/15.0
@@ -52,7 +52,7 @@ vec3 getCelestialColor(){
 		mixer = clamp((sunAngle - 0.95) * 20.0, 0.0, 1.0);
 		color = mix(color, MOONCOLOR_LATE, mixer);
 	}
-	return color;
+	return color * (1.0-rainStrength * 0.6);
 }
 
 float RGBluminance(vec3 color){

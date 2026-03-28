@@ -203,3 +203,44 @@
         return color / SAMPLING_PATTERN_LENGTH;
     }
 #endif
+
+#ifdef SCREEN_SPACE_AMBIENT_OCCLUSION
+    #define SSAO_STEPS 16
+    #define SLICES 16
+    #define SIGMA 0.01
+    #define KSSAO 3.0
+
+    vec3 getPositionVS(vec2 uv) {
+        float depth = sampleDepthWithHandFix(depthtex0, uv);
+        
+        vec2 uv2  = uv * 2.0 - vec2(1.0);
+        vec4 temp = gbufferProjectionInverse * vec4(uv2, -1.0, 1.0);
+        vec3 cameraFarPlaneWS = (temp / temp.w).xyz;
+        
+        vec3 cameraToPositionRay = normalize(cameraFarPlaneWS - cameraPosition);
+        vec3 originWS = cameraToPositionRay * depth + cameraPosition;
+        vec3 originVS = (gbufferProjection* vec4(originWS, 1.0)).xyz;
+        
+        return originVS;
+    }
+
+    float SSAO(vec3 screenPos, vec3 viewPos, vec3 normal, vec2 noise, float radius){
+        const float g = 1.32471795724474682596;
+        const vec2 ng = 1.0/(vec2(g, g*g));
+        float posLen = length(viewPos);
+        vec2 acc;
+        for(int i = 0; i <= SLICES * SSAO_STEPS; i++){
+            vec2 ns = vec2(6.28 * ((noise.x + i) / (SLICES * SSAO_STEPS)), fract(noise.y + i/g) * radius / posLen);
+            vec2 nxy = screenPos.xy + ns * vec2(sin(ns.x), cos(ns.x)) * vec2(1.0, viewWidth/viewHeight);
+
+            vec2 rg = clamp(nxy * nxy - nxy, 0.0, 1.0);
+            if(rg.x != -rg.y) continue;
+
+            vec3 samplePos = screenSpace_to_viewSpace(vec3(nxy, sampleDepthWithHandFix(depthtex0, nxy)));
+            //vec3 samplePos = getPositionVS(nxy);
+            vec3 tv = samplePos - viewPos;
+            acc += vec2(max(0.0, dot(tv, normal)) / (dot(tv, tv) * 0.03), 1.0);
+        }
+        return pow(clamp(1.0 - SIGMA * 2.0 * acc.x / acc.y, 0.0, 1.0), KSSAO);
+    }
+#endif

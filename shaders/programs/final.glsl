@@ -16,9 +16,11 @@ void main() {
 	vec4 color = texture2D(texture, texcoord);
 	color.rgb += screenBrightness * 0.005;
 	#ifdef EXPOSURE
-		float exposure = 8.5 - (float(max(eyeBrightnessSmooth.x, eyeBrightnessSmooth.y)) / 35.0);
-		color.rgb = vec3(1.0) - exp(-color.rgb * exposure);
+		float exposure = 8.95 - (float(max(eyeBrightnessSmooth.x, eyeBrightnessSmooth.y)) / 35.0);
+	#else
+		const float exposure = 2.5;
 	#endif
+	color.rgb = vec3(1.0) - exp(-color.rgb * exposure);
 	color.rgb = pow(color.rgb, vec3(1.0/2.12));
 /* RENDERTARGETS:0 */
 	gl_FragData[0] = color;

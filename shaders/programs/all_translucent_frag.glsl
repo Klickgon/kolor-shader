@@ -12,18 +12,19 @@
     #define BASE_SPECULAR vec4(0.75, 0.3, 1.0, 1.0);
 #endif
 
-#define WATER_COLOR vec4(0.0, 0.52, 0.48, 0.67)
+#define WATER_COLOR vec4(0.0, 0.42, 0.37, 0.47)
 
 #if defined PHYSICS_MOD
-    #define WATER_PBR vec4(mix(vec3(0.85, 0.89, 1.0), vec3(0.2, 0.3, 0.3), physics_waveData.foam), 1.0)
+    #define WATER_PBR vec4(mix(vec3(0.95, 0.59, 1.0), vec3(0.2, 0.3, 0.3), physics_waveData.foam), 1.0)
 #else
-    #define WATER_PBR vec4(0.85, 0.59, 1.0, 1.0)
+    #define WATER_PBR vec4(0.95, 0.59, 1.0, 1.0)
 #endif
 
 uniform mat4 gbufferModelView;
 
 uniform sampler2D texture;
 uniform sampler2D depthtex0;
+uniform sampler2D depthtex1;
 uniform sampler2D noisetex;
 
 uniform vec3 cameraPosition;
@@ -100,7 +101,7 @@ void main() {
         #if defined DH
             if(viewPosLength < far * 0.80) discard;
             vec2 ssCoord = gl_FragCoord.xy / vec2(viewWidth, viewHeight);
-            if(texture(depthtex0, ssCoord).r < 1.0) discard;
+            if(texture(depthtex1, ssCoord).r < 1.0) discard;
         #else
             if(max((viewPosLength - far * 0.95) * 0.05, 0.0) > getNoise(gl_FragCoord.xy)) discard;
         #endif
@@ -137,7 +138,6 @@ void main() {
             precolor.rgb = mix(pow(precolor.rgb, vec3(2.2)) * precolormult, pow(glcolor.rgb, vec3(2.2)) * glcolormult, 0.1);
         }
     #endif
-
     vec3 normal = vertexNormal;
     #if defined PHYSICS_MOD && defined WATER
         WavePixelData physics_waveData = physics_wavePixel(physics_localPosition.xz, physics_localWaviness, physics_iterationsNormal, physics_gameTime);
@@ -169,6 +169,9 @@ void main() {
         #endif
     #endif
     outColor = precolor;
+    #if defined WATER
+        //outColor = vec4(0.0, 0.0, 0.0, 1.0);
+    #endif
     lightmapData = vec4(lmcoord, vertexLightDot, 1.0);
     encodedNormal = vec4(normal * 0.5 + 0.5, 1.0);
     
