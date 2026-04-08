@@ -31,6 +31,7 @@ uniform vec3 cameraPosition;
 uniform float viewWidth;
 uniform float viewHeight;
 uniform float far;
+uniform float rainStrength;
 uniform float frameTimeCounter;
 
 #if !defined DH
@@ -168,10 +169,10 @@ void main() {
             #endif
         #endif
     #endif
-    outColor = precolor;
-    #if defined WATER
-        //outColor = vec4(0.0, 0.0, 0.0, 1.0);
+    #if defined WEATHER
+        precolor.a *= rainStrength;
     #endif
+    outColor = precolor;
     lightmapData = vec4(lmcoord, vertexLightDot, 1.0);
     encodedNormal = vec4(normal * 0.5 + 0.5, 1.0);
     

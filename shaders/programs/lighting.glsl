@@ -300,7 +300,13 @@ void main() {
 	extraInfoBuffer = vec4(extraInfo.rg, shadow, 1.0);
 	
 	#if defined SCREEN_SPACE_AMBIENT_OCCLUSION && !defined TRANSLUCENT_PASS
-		float ambientOcclusion = min(vanillaAO, clamp(SSAO(screenPos, viewPos, normal, noiseVec.xy * 0.05, 1.0), 0.0, 1.0));
+		float radius;
+		if(isDH) {
+			radius = 0.01;
+		} else {
+			radius = 0.25;
+		}
+		float ambientOcclusion = min(vanillaAO, clamp(SSAO(screenPos, viewPos, normal, noiseVec.xy * 0.9, radius, isDH ? dhDepthTex0 : depthtex0, viewPosLength), 0.0, 1.0));
 	#else
 		float ambientOcclusion = vanillaAO;
 	#endif

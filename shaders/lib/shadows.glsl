@@ -58,12 +58,18 @@
         float bias = (1.0-lightDot) * (1.0+surfaceDot * 7.0) * depth * 0.002;
         vec3 raydir = shadowLightPosition * 0.0025;
         float offset = noise * 0.25 + 1.0;
-        vec3 rayStep = raydir / 32.0 * offset;
-        for(int i = 0; i < 32.0; i++){
-            pixelViewPos += rayStep;
-            vec3 ssPos = projectAndDivide(gbufferProjection, pixelViewPos) * 0.5 + 0.5;
+        vec3 rayEnd = projectAndDivide(gbufferProjection, pixelViewPos + raydir * offset) * 0.5 + 0.5;
+        rayEnd.z = linearizeDepth(rayEnd.z);
+        vec3 rayStart = projectAndDivide(gbufferProjection, pixelViewPos) * 0.5 + 0.5;
+        rayStart.z = linearizeDepth(rayStart.z);
+        float progress = 0.0;
+        int steps = int(min(max(abs(rayStart.x-rayEnd.x) * viewWidth, abs(rayStart.y-rayEnd.y) * viewHeight), 32));
+        float step = 1.0/float(steps);
+        for(int i = 0; i < steps; i++){
+            progress += step;
+            vec3 ssPos = mix(rayStart, rayEnd, progress);
             if(ssPos.x < 0.0 || ssPos.x > 1.0 || ssPos.y < 0.0 || ssPos.y > 1.0) return false;
-            float delta = linearizeDepth(ssPos.z) - linearizeDepth(sampleDepthWithHandFix(depthtex0, ssPos.xy)) - bias;
+            float delta = ssPos.z - linearizeDepth(sampleDepthWithHandFix(depthtex0, ssPos.xy)) - bias;
             if(delta > 0.01 && delta < 0.08) return true;
         }
         return false;
@@ -78,13 +84,17 @@
             float bias = ((1-lightDot) * surfaceDot * depth * 0.00095);
 
             vec3 raydir = shadowLightPosition * 0.025;
-            vec3 rayStep = raydir / 32.0;
             float offset = noise * 0.20 + 1.0;
+            vec3 rayEnd = projectAndDivide(gbufferProjection, pixelViewPos + raydir * offset) * 0.5 + 0.5;
+            rayEnd.z = linearizeDepth(rayEnd.z);
+            vec3 rayStart = projectAndDivide(gbufferProjection, pixelViewPos) * 0.5 + 0.5;
+            rayStart.z = linearizeDepth(rayStart.z);
+            float progress = 0.0;
             for(int i = 0; i < 32.0; i++){
-                pixelViewPos += rayStep * offset;
-                vec3 ssPos = projectAndDivide(dhProjection, pixelViewPos) * 0.5 + 0.5;
+                progress += 1.0/32.0;
+                vec3 ssPos = mix(rayStart, rayEnd, progress);
                 if(ssPos.x < 0.0 || ssPos.x > 1.0 || ssPos.y < 0.0 || ssPos.y > 1.0) return false;
-                float delta = linearizeDepthDH(ssPos.z) - linearizeDepthDH(texture(dhDepthTex1, ssPos.xy).r) - bias;
+                float delta = ssPos.z - linearizeDepthDH(texture(dhDepthTex1, ssPos.xy).r) - bias;
                 if(delta > 6.0 && delta < 25.0) return true;
             }
             return false;
@@ -206,41 +216,24 @@
 
 #ifdef SCREEN_SPACE_AMBIENT_OCCLUSION
     #define SSAO_STEPS 16
-    #define SLICES 16
-    #define SIGMA 0.01
-    #define KSSAO 3.0
+    #define SLICES 4
+    #define SIGMA 0.34
+    #define KSSAO 1.2
 
-    vec3 getPositionVS(vec2 uv) {
-        float depth = sampleDepthWithHandFix(depthtex0, uv);
-        
-        vec2 uv2  = uv * 2.0 - vec2(1.0);
-        vec4 temp = gbufferProjectionInverse * vec4(uv2, -1.0, 1.0);
-        vec3 cameraFarPlaneWS = (temp / temp.w).xyz;
-        
-        vec3 cameraToPositionRay = normalize(cameraFarPlaneWS - cameraPosition);
-        vec3 originWS = cameraToPositionRay * depth + cameraPosition;
-        vec3 originVS = (gbufferProjection* vec4(originWS, 1.0)).xyz;
-        
-        return originVS;
-    }
-
-    float SSAO(vec3 screenPos, vec3 viewPos, vec3 normal, vec2 noise, float radius){
+    float SSAO(vec3 screenPos, vec3 viewPos, vec3 normal, vec2 noise, float radius, sampler2D depthSamp, float posLen){
         const float g = 1.32471795724474682596;
-        const vec2 ng = 1.0/(vec2(g, g*g));
-        float posLen = length(viewPos);
-        vec2 acc;
+        vec2 acc = vec2(0.0);
         for(int i = 0; i <= SLICES * SSAO_STEPS; i++){
-            vec2 ns = vec2(6.28 * ((noise.x + i) / (SLICES * SSAO_STEPS)), fract(noise.y + i/g) * radius / posLen);
-            vec2 nxy = screenPos.xy + ns * vec2(sin(ns.x), cos(ns.x)) * vec2(1.0, viewWidth/viewHeight);
+            vec2 ns = vec2(6.28 * ((noise.x + i) / (SLICES * SSAO_STEPS)), fract(noise.y + float(i)/g) * radius / posLen);
+            vec2 nxy = screenPos.xy + ns.y * vec2(sin(ns.x), cos(ns.x)) * vec2(1.0, viewWidth/viewHeight);
 
             vec2 rg = clamp(nxy * nxy - nxy, 0.0, 1.0);
             if(rg.x != -rg.y) continue;
 
-            vec3 samplePos = screenSpace_to_viewSpace(vec3(nxy, sampleDepthWithHandFix(depthtex0, nxy)));
-            //vec3 samplePos = getPositionVS(nxy);
+            vec3 samplePos = screenSpace_to_viewSpace(vec3(nxy, texture(depthSamp, nxy).r));
             vec3 tv = samplePos - viewPos;
-            acc += vec2(max(0.0, dot(tv, normal)) / (dot(tv, tv) * 0.03), 1.0);
+            acc += vec2(max(0.0, dot(tv, normal)) / (dot(tv, tv) + 0.03), 1.0);
         }
-        return pow(clamp(1.0 - SIGMA * 2.0 * acc.x / acc.y, 0.0, 1.0), KSSAO);
+        return pow(clamp(1.0 - SIGMA * 2.0 * acc.x / acc.y, 0.1, 1.0), KSSAO);
     }
 #endif

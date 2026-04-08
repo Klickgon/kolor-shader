@@ -45,7 +45,7 @@ void main() {
 	#endif
 	color = texture(texture, texcoord);
 	color.rgb = pow(pow(color.rgb, vec3(2.2)) * pow(glcolor.rgb, vec3(2.2)), vec3(1.0/2.2));
-	#ifdef SHADER_WATER
+	#if defined SHADER_WATER && COLORED_SHADOWS == 1
 		}
 	#endif
 	gl_FragData[0] = color;

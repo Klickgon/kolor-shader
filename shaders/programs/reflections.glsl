@@ -208,11 +208,11 @@ void main() {
 		} else reflectStrength *= pow(RGBluminance(reflectionColor + 0.01), 1.0/16.0);
 		color.rgb = mix(color.rgb, reflectionColor, clamp(reflectStrength, 0.0, 1.0));
 		if(shadow > 0.0) {
+			float lightDot = lightPassthrough ? 1.0 : dot(normalizedShadowLightPos, NMAP);
 			#if SPECULAR_LIGHT_QUALITY == 1
-				float lightDot = lightPassthrough ? 1.0 : dot(normalizedShadowLightPos, NMAP);
 				color.rgb += getSpecularHighlight(normalizedViewPos, lightDot, roughness) * celestialColor * tint * shadow  * (1.0 - 0.9*float(sunAngle != shadowAngle));
 			#else	
-				color.rgb += max(brdf(normalizedShadowLightPos, -normalizedViewPos, 1-smoothness * 0.95, NMAP, color.rgb, metallic, reflectance) * celestialColor * tint * shadow * (0.2 - 0.175*float(sunAngle != shadowAngle)), 0.0);
+				color.rgb += max(brdf(normalizedShadowLightPos, -normalizedViewPos, 1-smoothness * 0.95, NMAP, color.rgb, metallic, reflectance) * celestialColor * lightDot * tint * shadow * (0.2 - 0.175*float(sunAngle != shadowAngle)), 0.0);
 			#endif
 		}
 	}

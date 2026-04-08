@@ -58,23 +58,25 @@ vec3 brdf(vec3 lightDir, vec3 viewDir, float roughness, vec3 normal, vec3 albedo
                                      vec2(0.045626, 0.016714));
 
     vec3 brdfSSRColorSample(vec3 ray, vec3 pixelViewPos, float rayProgress, float roughness, vec3 normal, vec3 reflectance){
-        if(rayProgress > 0.1 && roughness > 0.01){
-            vec3 screenResolution = vec3(viewWidth, viewHeight, 0.0);
-            float mult = (1+roughness * 2.0) * 0.000001;
-            mat2 rotation = getRotationMat2(noise);
-            vec3 color = vec3(0.0);
-            vec3 weightsum = vec3(0.0);
-            for(int i = 0; i < 9; i++){
-                vec3 currentRay = ray + vec3(rayCoords[i] * rotation, 0.0) * mult;
-                vec2 rayScreenSpace = (projectAndDivide(gbufferProjection, currentRay) * 0.5 + 0.5).xy;
-                if(clamp(rayScreenSpace.xy, 0.0, 1.0) != rayScreenSpace.xy) continue;
-                vec3 weight = max(brdf(normalize(currentRay), -normalize(pixelViewPos), roughness, normal, vec3(0.0), 0.0, reflectance), 0.0);
-                weightsum += weight;
-                color += texture(colortex0, rayScreenSpace).rgb * weight;
+        #if SPECULAR_LIGHT_QUALITY == 2
+            if(rayProgress > 0.1 && roughness > 0.01){
+                vec3 screenResolution = vec3(viewWidth, viewHeight, 0.0);
+                float mult = (1+roughness * 2.0) * 0.000001;
+                mat2 rotation = getRotationMat2(noise);
+                vec3 color = vec3(0.0);
+                vec3 weightsum = vec3(0.0);
+                for(int i = 0; i < 9; i++){
+                    vec3 currentRay = ray + vec3(rayCoords[i] * rotation, 0.0) * mult;
+                    vec2 rayScreenSpace = (projectAndDivide(gbufferProjection, currentRay) * 0.5 + 0.5).xy;
+                    if(clamp(rayScreenSpace.xy, 0.0, 1.0) != rayScreenSpace.xy) continue;
+                    vec3 weight = max(brdf(normalize(currentRay), -normalize(pixelViewPos), roughness, normal, vec3(0.0), 0.0, reflectance), 0.0);
+                    weightsum += weight;
+                    color += texture(colortex0, rayScreenSpace).rgb * weight;
+                }
+                
+                return color / max(weightsum, 0.000000000001);
             }
-            
-            return color / max(weightsum, 0.000000000001);
-        }
+        #endif
         return texture(colortex0,(projectAndDivide(gbufferProjection, ray) * 0.5 + 0.5).xy).rgb;
     }
     
@@ -167,7 +169,7 @@ vec3 brdf(vec3 lightDir, vec3 viewDir, float roughness, vec3 normal, vec3 albedo
                     return !isHand ? mix(color, brdfSSRColorSample(ray, pixelViewPos, rayprogress, roughness, normalMap, reflectance), edgeFactor) : color;
                 } 
             }
-            ray *= 120.0;
+            ray *= 200.0;
             float edgeFactor = min(min(ssRayPos.x, 1.0 - ssRayPos.x), min(ssRayPos.y, 1.0 - ssRayPos.y));
 			edgeFactor = smoothstep(0.0, 0.1, edgeFactor);
 			edgeFactor = sqrt(edgeFactor);
